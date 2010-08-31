@@ -36,6 +36,7 @@ ain    Ainu
 aka    Akan
 akk    Akkadian
 alb    Albanian
+sqi    Albanian
 ale    Aleut
 alg    Algonquian languages
 alt    Southern Altai
@@ -47,6 +48,7 @@ ara    Arabic
 arc    Official Aramaic (700-300 BCE), Imperial Aramaic (700-300 BCE)
 arg    Aragonese
 arm    Armenian
+hye    Armenian
 arn    Mapudungun, Mapuche
 arp    Arapaho
 art    Artificial languages
@@ -67,6 +69,7 @@ bal    Baluchi
 bam    Bambara
 ban    Balinese
 baq    Basque
+eus    Basque
 bas    Basa
 bat    Baltic languages
 bej    Beja, Bedawiyet
@@ -89,6 +92,7 @@ bua    Buriat
 bug    Buginese
 bul    Bulgarian
 bur    Burmese
+mya    Burmese
 byn    Blin, Bilin
 cad    Caddo
 cai    Central American Indian languages
@@ -102,6 +106,7 @@ chb    Chibcha
 che    Chechen
 chg    Chagatai
 chi    Chinese
+zho    Chinese
 chk    Chuukese
 chm    Mari
 chn    Chinook jargon
@@ -124,6 +129,7 @@ crp    Creoles and pidgins
 csb    Kashubian
 cus    Cushitic languages
 cze    Czech
+ces    Czech
 dak    Dakota
 dan    Danish
 dar    Dargwa
@@ -139,6 +145,7 @@ dsb    Lower Sorbian
 dua    Duala
 dum    Dutch, Middle (ca.1050-1350)
 dut    Dutch, Flemish
+nld    Dutch, Flemish
 dyu    Dyula
 dzo    Dzongkha
 efi    Efik
@@ -160,6 +167,7 @@ fin    Finnish
 fiu    Finno-Ugrian languages
 fon    Fon
 fre    French
+fra    French
 frm    French, Middle (ca.1400-1600)
 fro    French, Old (842-ca.1400)
 frr    Northern Frisian
@@ -172,7 +180,9 @@ gay    Gayo
 gba    Gbaya
 gem    Germanic languages
 geo    Georgian
+kat    Georgian
 ger    German
+deu    German
 gez    Geez
 gil    Gilbertese
 gla    Gaelic, Scottish Gaelic
@@ -187,6 +197,7 @@ got    Gothic
 grb    Grebo
 grc    Greek, Ancient (to 1453)
 gre    Greek, Modern (1453-)
+ell    Greek, Modern (1453-)
 grn    Guarani
 gsw    Swiss German, Alemannic, Alsatian
 guj    Gujarati
@@ -210,6 +221,7 @@ hup    Hupa
 iba    Iban
 ibo    Igbo
 ice    Icelandic
+isl    Icelandic
 ido    Ido
 iii    Sichuan Yi, Nuosu
 ijo    Ijo languages
@@ -285,6 +297,7 @@ lun    Lunda
 luo    Luo (Kenya and Tanzania)
 lus    Lushai
 mac    Macedonian
+mkd    Macedonian
 mad    Madurese
 mag    Magahi
 mah    Marshallese
@@ -293,10 +306,12 @@ mak    Makasar
 mal    Malayalam
 man    Mandingo
 mao    Maori
+mri    Maori
 map    Austronesian languages
 mar    Marathi
 mas    Masai
 may    Malay
+msa    Malay
 mdf    Moksha
 mdr    Mandar
 men    Mende
@@ -365,6 +380,7 @@ pap    Papiamento
 pau    Palauan
 peo    Persian, Old (ca.600-400 B.C.)
 per    Persian
+fas    Persian
 phi    Philippine languages
 phn    Phoenician
 pli    Pali
@@ -382,6 +398,7 @@ roa    Romance languages
 roh    Romansh
 rom    Romany
 rum    Romanian, Moldavian, Moldovan
+ron    Romanian, Moldavian, Moldovan
 run    Rundi
 rup    Aromanian, Arumanian, Macedo-Romanian
 rus    Russian
@@ -407,6 +424,7 @@ sio    Siouan languages
 sit    Sino-Tibetan languages
 sla    Slavic languages
 slo    Slovak
+slk    Slovak
 slv    Slovenian
 sma    Southern Sami
 sme    Northern Sami
@@ -449,6 +467,7 @@ tgk    Tajik
 tgl    Tagalog
 tha    Thai
 tib    Tibetan
+bod    Tibetan
 tig    Tigre
 tir    Tigrinya
 tiv    Tiv
@@ -488,6 +507,7 @@ wal    Walamo
 war    Waray
 was    Washo
 wel    Welsh
+cym    Welsh
 wen    Sorbian languages
 wln    Walloon
 wol    Wolof
@@ -507,7 +527,9 @@ zul    Zulu
 zun    Zuni
 zxx    No linguistic content, Not applicable
 zza    Zaza, Dimili, Dimli, Kirdki, Kirmanjki, Zazaki
+unk    Unknown (VDW only--not part of 639-2)
 ;
+
 run ;
 
 proc print ;
