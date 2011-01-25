@@ -29,6 +29,10 @@
 
 options linesize = 150 nocenter msglevel = i NOOVP formchar='|-++++++++++=|-/|<>*' dsoptions="note2err" ;
 
+
+** REMOVE THIS ROY!!!) ;
+%let _vdw_enroll = s.enroll3_candidate ;
+
 ** ========================= END EDIT SECTION ================================= ;
 
 %let round_to = 0.0001 ;

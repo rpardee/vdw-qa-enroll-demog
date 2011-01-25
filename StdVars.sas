@@ -29,20 +29,28 @@
 
   ** dataset name specs ;
   %let _TumorData               = tumor ;
-  %let _EnrollData              = enroll2_vw ;
-  %let _DemographicData         = demog ;
+  %let _EnrollData              = enroll2_v2 ;
+  %let _DemographicData         = demog_view ;
   %let _RxData                  = rx ;
   %let _EverNdcData             = EverNDC_1998_2007 ;
-  %let _UtilizationData         = utilization ;
-  %let _DxData                  = dx ;
-  %let _PxData                  = px ;
+
+  %let _UtilizationData         = utilization_v2 ;
+  %let _DxData                  = dx_v2 ;
+  %let _PxData                  = px_v2 ;
+
+/*
+  %let _UtilizationData         = utilization_view ;
+  %let _DxData                  = dx_view ;
+  %let _PxData                  = px_view ;
+*/
+
   %let _DeathData               = death ;
   %let _CODData                 = cod ;
-  %let _ProviderSpecialtyData   = specfile ;
-  %let _VitalData               = vitalsigns ;
+  %let _ProviderSpecialtyData   = specfile_view ;
+  %let _VitalData               = vitalsigns_view ;
   %let _CensusData              = census2000 ;
   %let _LabData                 = lab_results ;
-  %let _LabDataCharacter        = lab_results_character ;
+  %let _LabDataNotes            = lab_results_notes ;
 
 
 
@@ -52,11 +60,7 @@
   ** You are also free to define any number of different libnames, if your VDW dsets are stored in different locations. ;
   ** Making this intentionally wacky so as to keep from colliding w/names likely to be chosen in application programs. ;
   libname __vdw "&_TumorLib"          access = readonly ;
-  libname __scr "&_TumorLib\scratch"  access = readonly ;
-
-
-  ** ADDED THIS SO i CAN USE THE FAKE DEMOG. ;
-  libname s '\\ctrhs-sas\SASUser\pardre1' ;
+  libname __scr "\\ctrhs-sas\Warehouse\Management\OfflineData\CRN_VDW\scratch"  access = readonly ;
 
   %let _vdw_tumor               = __vdw.&_TumorData ;
   %let _vdw_enroll              = __vdw.&_EnrollData ;
@@ -70,7 +74,7 @@
   %let _vdw_vitalsigns          = __vdw.&_VitalData ;
   %let _vdw_census              = __vdw.&_CensusData ;
   %let _vdw_lab                 = __vdw.&_LabData ;
-  %let _vdw_lab_character       = __vdw.&_LabDataCharacter ;
+  %let _vdw_lab_notes           = __vdw.&_LabDataNotes ;
   %let _vdw_death               = __vdw.&_DeathData ;
   %let _vdw_cause_of_death      = __vdw.&_CODData ;
 
@@ -100,18 +104,18 @@
   ** These vars are temporary--will only exist during the v2 -> v3 transition.  ;
   ** See https://appliedresearch.cancer.gov/crnportal/data-resources/vdw/version-3/implementation-plan for details. ;
   %let _vdw_enroll_m1               = __vdw.enroll3_vw ;
-  %let _vdw_vitalsigns_m1           = __scr.vitalsigns_v3 ;
+  %let _vdw_vitalsigns_m1           = __vdw.vitalsigns ;
 
-  %let _vdw_utilization_m2          = ;
-  %let _vdw_dx_m2                   = ;
-  %let _vdw_px_m2                   = ;
-  %let _vdw_vitalsigns_m2           = ;
+  %let _vdw_utilization_m2          = __vdw.utilization ;
+  %let _vdw_dx_m2                   = __vdw.dx ;
+  %let _vdw_px_m2                   = __vdw.px ;
+  %let _vdw_vitalsigns_m2           = __vdw.vitalsigns ;
 
-  %let _vdw_demographic_m3          = s.fake_demog3 ;
+  %let _vdw_demographic_m3          = __vdw.demog ;
 
   %let _vdw_lab_m4                  = ;
-  %let _vdw_lab_character_m4        = ;
+  %let _vdw_lab_notes_m4       		  = ;
 
-  %let _vdw_provider_specialty_m5   = ;
-  %let _vdw_enroll_m6               = ;
+  %let _vdw_provider_specialty_m5   = __vdw.specfile;
+  %let _vdw_enroll_m6               = __vdw.enroll2 ;
 

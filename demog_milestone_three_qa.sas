@@ -18,7 +18,9 @@ options linesize = 150 nocenter msglevel = i NOOVP formchar='|-++++++++++=|-/|<>
 libname _all_ clear ;
 
 ** Please replace with a reference to your local StdVars file. ;
-%include "\\groups\data\CTRHS\Crn\voc\enrollment\programs\StdVars.sas" ;
+%**include "\\groups\data\CTRHS\Crn\voc\enrollment\programs\StdVars.sas" ;
+
+%include "\\groups\data\CTRHS\Crn\S D R C\VDW\Macros\StdVars.sas" ;
 
 ** A folder spec where HTML output can be written--please make sure you leave a trailing folder separator ;
 ** character (e.g., a backslash) here--ODS is very picayune about that... ;

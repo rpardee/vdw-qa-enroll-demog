@@ -49,15 +49,37 @@ data norm_race ;
   do i = 1 to 5 ;
     race    = put(r{i}, $race.) ;
     sortby  = put(race, $prior.) ;
+    if race ne 'UN' then output ;
+  end ;
+run ;
+
+proc sort nodupkey data = norm_race ;
+  by mrn sortby ;
+run ;
+
+data santa ;
+  mrn = 'santa' ;
+  do i = 1 to 5 ;
+    race = 'UN' ;
     output ;
   end ;
 run ;
 
-proc sort data = norm_race ;
-  by mrn sortby ;
+data norm_race ;
+  set norm_race santa ;
 run ;
 
 proc transpose data = norm_race out = s.fake_demog3(drop = _:) prefix = race ;
   var race ;
   by mrn hispanic gender birth_date needs_interpreter primary_language ;
+run ;
+
+data s.fake_demog3 ;
+  set s.fake_demog3 ;
+  array r race: ;
+  do i = 1 to dim(r) ;
+    r{i} = coalescec(r{i}, 'UN') ;
+  end ;
+  where mrn ne 'santa' ;
+  drop i ;
 run ;

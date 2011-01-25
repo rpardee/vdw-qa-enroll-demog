@@ -28,7 +28,7 @@ libname _all_ clear ;
 %include "\\groups\data\CTRHS\Crn\S D R C\VDW\Macros\StdVars.sas" ;
 
 ** Using this program to exercise my v2-compatible view--should be lots of fails... ;
-%let _vdw_enroll_m1 = __vdw.enroll2_vw ;
+%**let _vdw_enroll_m1 = __vdw.enroll2_vw ;
 
 ** A folder spec where HTML output can be written--please make sure you leave a trailing folder separator ;
 ** character (e.g., a backslash) here--ODS is very picayune about that... ;
