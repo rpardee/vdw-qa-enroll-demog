@@ -29,8 +29,8 @@
 
   ** dataset name specs ;
   %let _TumorData               = tumor ;
-  %let _EnrollData              = enroll2_v2 ;
-  %let _DemographicData         = demog_view ;
+  %let _EnrollData              = enroll2 ;
+  %let _DemographicData         = demog ;
   %let _RxData                  = rx ;
   %let _EverNdcData             = EverNDC_1998_2007 ;
 

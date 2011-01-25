@@ -1,43 +1,7 @@
-/*********************************************
-* Roy Pardee
-* Center For Health Studies
-* (206) 287-2078
-* pardee.r@ghc.org
-*
-* voc_denominators.sas
-*
-* Creates a file of yearly enrollment counts for use by the VDW Operational Comittee
-* data area subcomittees to use in calculating rates.
-*
-*********************************************/
-
-** ======================== BEGIN EDIT SECTION ================================ ;
-
-** PLEASE COMMENT OUT THE FOLLOWING LINE IF ROY FORGETS TO (SORRY!) ;
-%include "\\home\pardre1\SAS\Scripts\dw_login.sas" ;
-
-** Your local copy of StdVars.sas ;
-%include "\\groups\data\CTRHS\Crn\S D R C\VDW\Macros\StdVars.sas" ;
-
-** Destination for the output dataset of denominators. ;
-%let outlib = \\ctrhs-sas\sasuser\pardre1\vdw ;
-
-** Testing out looking just at our IGP folks... ;
-%**let _vdw_enroll = vdw.enroll_igp_only_vw ;
-
-%let outlib = \\ctrhs-sas\sasuser\pardre1\vdw\voc_lab ;
-
-options linesize = 150 nocenter msglevel = i NOOVP formchar='|-++++++++++=|-/|<>*' dsoptions="note2err" ;
-
-** ========================= END EDIT SECTION ================================= ;
-
-%let round_to = 0.0001 ;
-
-%include vdw_macs ;
-
-libname outlib  "&outlib" ;
-
 %macro make_denoms(start_year, end_year, outset) ;
+  %local round_to ;
+  %let round_to = 0.0001 ;
+
   proc format ;
     ** 0-17, 18-64, 65+ ;
     value shrtage
@@ -69,35 +33,15 @@ libname outlib  "&outlib" ;
     value $cd
       'A' = 'Y'
       'B' = 'N'
-      'C' = ' '
+      'C' = 'U'
     ;
     value $Race
-      '01' = 'White'
-      '02' = 'Black'
-      '03' = 'Native'
-      '04'
-      , '05'
-      , '06'
-      , '08'
-      , '09'
-      , '10'
-      , '11'
-      , '12'
-      , '13'
-      , '14'
-      , '96' = 'Asian'
-        '07'
-      , '20'
-      , '21'
-      , '22'
-      , '25'
-      , '26'
-      , '27'
-      , '28'
-      , '30'
-      , '31'
-      , '32'
-      , '97' = 'Pac Isl' /* Native Hawaiian or Other Pacific Islander */
+      'WH' = 'White'
+      'BA' = 'Black'
+      'IN' = 'Native'
+      'AS' = 'Asian'
+      'HP' = 'Pac Isl' /* Native Hawaiian or Other Pacific Islander */
+      'MU' = 'Multiple'
       Other = 'Unknown' /* Unknown or Not Reported */
     ;
   quit ;
@@ -113,9 +57,6 @@ libname outlib  "&outlib" ;
     format first_day last_day mmddyy10. ;
   run ;
 
-  proc print ;
-  run ;
-
   proc sql ;
     /*
       Dig this funky join--its kind of a cartesian product, limited to
@@ -126,7 +67,7 @@ libname outlib  "&outlib" ;
 
       Nice thing here is we can do calcs on all the years desired in a single
       statement.  I was concerned about perf, but this ran quite quickly--the
-      whole program about 4 minutes of wall clock time to do 1998 - 2007 @ GH.
+      whole program took about 4 minutes of wall clock time to do 1998 - 2007 @ GH.
 
     */
     create table gnu as
@@ -142,47 +83,14 @@ libname outlib  "&outlib" ;
     group by mrn, year
     ;
 
-    ** Check the no-overlaps assumption. ;
-    reset outobs = 10 nowarn ;
-    create table people_with_overlapping_periods as
-    select mrn, year, enrolled_proportion
-    from gnu
-    where round(enrolled_proportion, &round_to ) > 1.0000
-    ;
-
-    %if &SQLOBS > 0 %then %do ;
-      reset outobs = max warn ;
-
-      create table outlib.bad_enroll_overlaps(label = "These people have overlapping enrollment periods covering [[Year]]") as
-      select year, enrolled_proportion, e.*
-      from &_vdw_enroll as e INNER JOIN
-           people_with_overlapping_periods as p
-      on    e.mrn = p.mrn AND
-            e.enr_start le mdy(12, 31, p.year) AND
-            e.enr_end   ge mdy(1, 1, p.year)
-      order by e.mrn, e.enr_start, e.enr_end
-      ;
-      %put  ;
-      %put DATA ERROR!!!  ENROLLMENT PERIODS MUST NOT OVERLAP!  SEE OUTLIB.BAD_ENROLL_OVERLAPS FOR SAMPLE RECORDS WITH OVERLAPS! ;
-      %put  ;
-      %put DATA ERROR!!!  ENROLLMENT PERIODS MUST NOT OVERLAP!  SEE OUTLIB.BAD_ENROLL_OVERLAPS FOR SAMPLE RECORDS WITH OVERLAPS! ;
-      %put  ;
-      %put DATA ERROR!!!  ENROLLMENT PERIODS MUST NOT OVERLAP!  SEE OUTLIB.BAD_ENROLL_OVERLAPS FOR SAMPLE RECORDS WITH OVERLAPS! ;
-      %put  ;
-    %end ;
-
     reset outobs = max warn ;
-
-    ** The 99 value here is actually contrary to the spec, but is in use at GH and some other sites. ;
-    %local unk_races ;
-    %let unk_races = '88', '99' ;
 
     create table with_agegroup as
     select g.mrn
         , year
         , put(%calcage(refdate = mdy(1, 1, year)), agecat.) as agegroup label = "Age on 1-jan of [[year]]"
         , gender
-        , case when race2 is null or race2 in (&unk_races) then put(race1, $race.) else 'Multiple' end as race length = 10
+        , put(race1, $race.) as race length = 10
         , put(drugcov, $cd.) as drugcov
         , enrolled_proportion
     from gnu as g LEFT JOIN
@@ -190,7 +98,7 @@ libname outlib  "&outlib" ;
     on   g.mrn = d.mrn
     ;
 
-    create table outlib.&outset as
+    create table &outset as
     select year
         , agegroup
         , drugcov label = "Drug coverage status (set to 'Y' if drugcov was 'Y' even once in [[year]])"
@@ -205,19 +113,14 @@ libname outlib  "&outlib" ;
 
 
     ** Create a dset of (masked) counts by race for submission to GH for collation. ;
-    create table outlib.race_counts_&_SiteAbbr as
+    create table race_counts_&_SiteAbbr as
     select year, agegroup, race
           , case when sum(prorated_total) between .01 and 4 then .a else sum(prorated_total) end as prorated_total format = comma20.2
           , case when sum(total)          between 1   and 4 then .a else sum(total)          end as total          format = comma20.0
-    from outlib.&outset
+    from &outset
     group by year, agegroup, race
     ;
 
   quit ;
 
 %mend make_denoms ;
-
-** options obs = 1000 ;
-options mprint ;
-
-%make_denoms(start_year = 2007, end_year = 2009, outset = denominators) ;
