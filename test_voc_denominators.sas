@@ -14,13 +14,12 @@
 
 options linesize = 150 nocenter msglevel = i NOOVP formchar='|-++++++++++=|-/|<>*' dsoptions="note2err" NOSQLREMERGE ;
 
-%let out_folder = \\groups\data\CTRHS\Crn\voc\enrollment\programs\ ;
-
 
 %include "\\groups\data\CTRHS\Crn\voc\enrollment\programs\StdVars.sas" ;
 
-%include "\\groups\data\ctrhs\crn\voc\enrollment\programs\voc_denominators.sas" ;
+%**include "\\groups\data\ctrhs\crn\voc\enrollment\programs\voc_denominators.sas" ;
+%include "\\groups\data\CTRHS\Crn\S D R C\VDW\Macros\standard_macros.sas" ;
 
 ** options obs = 1000 mprint ;
 
-%make_denoms(start_year = 2007, end_year = 2007, outset = s.test_denominators) ;
+%make_denoms(start_year = 2007, end_year = 2010, outset = s.test_denominators) ;

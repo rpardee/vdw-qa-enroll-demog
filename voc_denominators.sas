@@ -40,9 +40,9 @@
       'BA' = 'Black'
       'IN' = 'Native'
       'AS' = 'Asian'
-      'HP' = 'Pac Isl' /* Native Hawaiian or Other Pacific Islander */
+      'HP' = 'Pac Isl'
       'MU' = 'Multiple'
-      Other = 'Unknown' /* Unknown or Not Reported */
+      Other = 'Unknown'
     ;
   quit ;
 
@@ -50,7 +50,7 @@
     do year = &start_year to &end_year ;
       first_day = mdy(1, 1, year) ;
       last_day  = mdy(12, 31, year) ;
-      * Being extra anal-retentive here--we are probably going to hit a leap year or two. ;
+      ** Being extra anal-retentive here--we are probably going to hit a leap year or two. ;
       num_days  = last_day - first_day + 1 ;
       output ;
     end ;
@@ -74,6 +74,7 @@
     select mrn
           , year
           , min(put(drugcov, $dc.)) as drugcov
+          , min(put(outside_utilization, $dc.)) as outside_utilization
           /* This depends on there being no overlapping periods to work! */
           , sum((min(enr_end, last_day) - max(enr_start, first_day) + 1) / num_days) as enrolled_proportion
     from  &_vdw_enroll as e INNER JOIN
@@ -92,6 +93,7 @@
         , gender
         , put(race1, $race.) as race length = 10
         , put(drugcov, $cd.) as drugcov
+        , put(outside_utilization, $cd.) as outside_utilization
         , enrolled_proportion
     from gnu as g LEFT JOIN
          &_vdw_demographic as d
@@ -102,16 +104,17 @@
     select year
         , agegroup
         , drugcov label = "Drug coverage status (set to 'Y' if drugcov was 'Y' even once in [[year]])"
+        , outside_utilization label = "Was there reason to suspect incomplete capture of ute or rx? (set to 'Y' if outside_ute was 'Y' even once in [[year]])"
         , race
         , gender
         , round(sum(enrolled_proportion), &round_to) as prorated_total format = comma20.2 label = "Pro-rated number of people enrolled in [[year]] (accounts for partial enrollments)"
         , count(mrn)               as total          format = comma20.0 label = "Number of people enrolled at least one day in [[year]]"
     from with_agegroup
-    group by year, agegroup, drugcov, race, gender
-    order by year, agegroup, drugcov, race, gender
+    group by year, agegroup, drugcov, outside_utilization, race, gender
+    order by year, agegroup, drugcov, outside_utilization, race, gender
     ;
 
-
+    /*
     ** Create a dset of (masked) counts by race for submission to GH for collation. ;
     create table race_counts_&_SiteAbbr as
     select year, agegroup, race
@@ -120,6 +123,7 @@
     from &outset
     group by year, agegroup, race
     ;
+    */
 
   quit ;
 
