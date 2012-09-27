@@ -27,7 +27,10 @@ options
 ;
 
 * Please edit this to point to your local standard vars file. ;
-%include "\\groups\data\CTRHS\Crn\S D R C\VDW\Macros\StdVars5p.sas" ;
+%include "\\groups\data\CTRHS\Crn\S D R C\VDW\Macros\StdVars.sas" ;
+
+* Please edit this so that it points to the accompanying qa_formats.sas file. ;
+%include "\\mlt1q0\c$\Documents and Settings\pardre1\My Documents\vdw\voc_enroll\qa_formats.sas" ;
 
 * Please specify a location for "private" datasets that the e/d workgroup does not want to see ;
 libname to_stay "\\ghrisas\SASUser\pardre1\vdw\voc_enroll" ;
@@ -37,57 +40,9 @@ libname to_go   "\\ghrisas\SASUser\pardre1\vdw\voc_enroll\send" ;
 * ======================== end edit section ======================== ;
 * ======================== end edit section ======================== ;
 
-data expected_vars ;
-  length name $ 32 ;
-  input
-    @1   dset      $
-    @9   name  $char20.
-    @33   type
-    @37   recommended_length
-  ;
-  infile datalines missover ;
-datalines ;
-demog   gender                  2
-demog   birth_date              1   4
-demog   hispanic                2
-demog   mrn                     2
-demog   needs_interpreter       2
-demog   primary_language        2
-demog   race1                   2
-demog   race2                   2
-demog   race3                   2
-demog   race4                   2
-demog   race5                   2
-enroll  mrn                     2
-enroll  enr_end                 1   4
-enroll  enr_start               1   4
-enroll  enrollment_basis        2
-enroll  drugcov                 2
-enroll  ins_commercial          2
-enroll  ins_highdeductible      2
-enroll  ins_medicaid            2
-enroll  ins_medicare            2
-enroll  ins_medicare_a          2
-enroll  ins_medicare_b          2
-enroll  ins_medicare_c          2
-enroll  ins_medicare_d          2
-enroll  ins_other               2
-enroll  ins_privatepay          2
-enroll  ins_selffunded          2
-enroll  ins_statesubsidized     2
-enroll  outside_utilization     2
-enroll  pcc                     2
-enroll  pcp                     2
-enroll  plan_hmo                2
-enroll  plan_indemnity          2
-enroll  plan_pos                2
-enroll  plan_ppo                2
-;
-run ;
-
 proc sql ;
   create table results
-   ( description  char(50) label = "Description"
+   ( description  char(60) label = "Description"
    , qa_macro     char(30) label = "Name of the macro that does this check"
    , detail_dset  char(30) label = "Look for further details in this dataset"
    , num_bad      numeric  label = "For record-based checks, how many records offend the spec?" format = comma14.0
@@ -98,13 +53,6 @@ proc sql ;
 quit ;
 
 %macro check_vars ;
-  proc format ;
-    value vtype
-      1 = "numeric"
-      2 = "char"
-    ;
-  quit ;
-
   proc contents noprint data = &_vdw_demographic  out = dvars(keep = name type length label) ;
   run ;
   proc contents noprint data = &_vdw_enroll       out = evars(keep = name type length label) ;
@@ -161,26 +109,10 @@ quit ;
   quit ;
 %mend check_vars ;
 
-%macro enroll_row_by_row ;
+%macro enroll_tier_one(inset = &_vdw_enroll) ;
   /*
     Combines several checks in a quest for efficiency.
   */
-  proc format ;
-    value $flg
-      "Y"   = "yes"
-      "N"   = "no"
-      "U"   = "unknown"
-      other = "bad"
-    ;
-    value $eb
-      "I"   = "insurance"
-      "G"   = "geography"
-      "B"   = "both ins + geog"
-      "P"   = "patient only"
-      other = "bad"
-    ;
-  quit ;
-
   proc sql ;
     create table erbr_checks
     (   description char(50)
@@ -218,9 +150,9 @@ quit ;
 
   quit ;
 
-  data to_stay.bad_enroll ;
+  data to_stay.bad_enroll (drop = rid) periods (keep = mrn enr_start enr_end rid) ;
     length problem $ 40 ;
-    set &_vdw_enroll end = alldone ;
+    set &inset end = alldone ;
     if _n_ = 1 then do ;
       * Define a hash to hold all the MRN values we see, so we can check it against the ones in demog ;
       declare hash mrns() ;
@@ -230,6 +162,10 @@ quit ;
 
     * Add the current MRN to our list if it is not already there. ;
     mrns.ref() ;
+
+    * Periods gets everything. ;
+    rid = _n_ ;
+    output periods ;
 
     array flags{*}
       ins_commercial
@@ -326,7 +262,7 @@ quit ;
           end as result
     into :num_enroll_mrns, :num_in_demog, :num_bad, :percent_found, :mrn_result
     from enroll_mrns as e LEFT JOIN
-          &_vdw_demographic (obs = 20000) as d
+          &_vdw_demographic as d
     on      e.mrn = d.mrn
     ;
 
@@ -341,11 +277,11 @@ quit ;
     %end ;
 
     insert into results (description, qa_macro, detail_dset, num_bad, percent_bad, result)
-        values ("MRNs in enrollment foundin demog?", '%enroll_row_by_row', "to_stay.enroll_mrns_not_in_demog",  &num_bad, &percent_found, "&mrn_result")
+        values ("MRNs in enrollment found in demog?", '%enroll_tier_one', "to_stay.enroll_mrns_not_in_demog",  &num_bad, &percent_found, "&mrn_result")
     ;
 
     * Whats our denominator on enrollment? ;
-    select count(*) as num_enroll_recs into :num_enroll_recs from &_vdw_enroll ;
+    select count(*) as num_enroll_recs into :num_enroll_recs from &inset ;
 
     create table bad_enroll_summary as
     select   problem, count(*) as num_bad, (count(*) / &num_enroll_recs) * 100 as percent_bad
@@ -362,7 +298,7 @@ quit ;
     ;
 
     %if &sqlobs > 0 %then %do i = 1 %to 10 ;
-      %put ERROR: IN QA ENROLL_ROW_BY_ROW--found these unexpected checks: &unexpected_problems ;
+      %put ERROR: IN QA ENROLL_TIEr_OnE--found these unexpected checks: &unexpected_problems ;
     %end ;
 
     create table enroll_rbr_checks as
@@ -380,18 +316,229 @@ quit ;
     ;
 
     insert into results (description, qa_macro, detail_dset, num_bad, percent_bad, result)
-    select description, '%enroll_row_by_row', 'to_stay.bad_enroll', num_bad, percent_bad, result
+    select description, '%enroll_tier_one', 'to_stay.bad_enroll', num_bad, percent_bad, result
     from enroll_rbr_checks
     ;
+
+    * Check for overlapping periods. ;
+    create table to_stay.overlapping_periods as
+    select
+          p1.mrn
+        , p1.enr_start as start1
+        , p1.enr_end   as end1
+        , p2.enr_start as start2
+        , p2.enr_end   as end2
+        , (p1.enr_start lt p2.enr_end AND
+          p1.enr_end   gt p2.enr_start) as overlap
+    from  periods as p1 INNER JOIN
+          periods as p2
+    on    p1.mrn = p2.mrn
+    where (p1.rid > p2.rid)
+          AND (p1.enr_start le p2.enr_end AND p1.enr_end  ge p2.enr_start)
+    ;
+    %if &sqlobs > 0 %then %do ;
+      insert into results (description, qa_macro, detail_dset, num_bad, percent_bad, result)
+      values ('Do enrollment periods overlap?', '%enroll_tier_one', 'to_stay.overlapping_periods',  &sqlobs, %sysevalf(&num_enroll_recs / &sqlobs), 'fail')
+      ;
+    %end ;
+    %else %do ;
+      insert into results (description, qa_macro, detail_dset, num_bad, percent_bad, result)
+      values ('Do enrollment periods overlap?', '%enroll_tier_one', 'to_stay.overlapping_periods', 0, 0, 'pass')
+      ;
+    %end ;
   quit ;
 
-%mend enroll_row_by_row ;
+%mend enroll_tier_one ;
+
+%macro demog_tier_one(inset = &_vdw_demographic) ;
+  /*
+    Checks
+      - duplicated MRNs
+      - valid values for:
+          gender
+          birth_date
+          hispanic
+          needs_interpreter
+          primary_language
+          race1
+          race2
+          race3
+          race4
+          race5
+   */
+
+  proc sql ;
+    create table demog_checks
+    (   description char(50)
+      , problem char(50)
+      , warn_lim numeric
+      , fail_lim numeric
+    ) ;
+
+    insert into demog_checks (description, problem, warn_lim, fail_lim)
+    select 'Valid values: ' || trim(name), 'bad value in ' || trim(name), 2, 5
+    from expected_vars
+    where dset = 'demog' and name ne 'mrn'
+    ;
+
+    * insert into demog_checks (description, problem, warn_lim, fail_lim) values ('Duplicated MRNs?', 'MRNs are not unique', 0, 0) ;
+
+  quit ;
+
+  data to_stay.bad_demog (drop = cnt) ;
+    set &inset end = alldone ;
+    if _n_ = 1 then do ;
+      * While we are looping through demog, lets check for duped MRNs. ;
+      declare hash mrns() ;
+      mrns.definekey('mrn') ;
+      mrns.definedata('mrn') ;
+      mrns.definedata('cnt') ;
+      mrns.definedone() ;
+    end ;
+
+    if mrns.find() = 0 then do ;
+      cnt = cnt + 1 ;
+      mrns.replace() ;
+    end ;
+    else do ;
+      cnt = 1 ;
+      mrns.add() ;
+    end ;
+
+    array flags hispanic needs_interpreter ;
+    do i = 1 to dim(flags) ;
+      if put(flags{i}, $flg.) = 'bad' then do ;
+        problem = "bad value in " || lowcase(vname(flags{i})) ;
+        output to_stay.bad_demog ;
+      end ;
+    end ;
+
+    array race race1 - race5 ;
+    do i = 1 to dim(race) ;
+      if put(race{i}, $race.) = 'bad' then do ;
+        problem = "bad value in " || lowcase(vname(race{i})) ;
+        output to_stay.bad_demog ;
+      end ;
+    end ;
+
+    if put(gender, $gend.) = 'bad' then do ;
+      problem = "bad value in gender" ;
+      output to_stay.bad_demog ;
+    end ;
+
+    if put(primary_language, $lang.) = 'bad' then do ;
+      problem = "bad value in primary_language" ;
+      output to_stay.bad_demog ;
+    end ;
+
+    if alldone then do ;
+      mrns.output(dataset: 'demog_mrns') ;
+    end ;
+
+    drop i ;
+  run ;
+
+  data to_stay.duplicated_demog_mrns ;
+    retain num_dupes 0 ;
+    set demog_mrns end = alldone ;
+    if cnt > 1 then do ;
+      num_dupes + cnt ;
+      output ;
+    end ;
+    if alldone then do ;
+      call symput('num_dupes', put(num_dupes, best.)) ;
+      call symput('percent_dupes', put((num_dupes / _n_) * 100, best.)) ;
+    end ;
+    drop num_dupes ;
+  run ;
+
+  proc sql ;
+    reset noprint ;
+
+    %if &num_dupes > 0 %then %do ;
+      insert into results (description, qa_macro, detail_dset, num_bad, percent_bad, result)
+      values ("Duplicated MRNs in demog?", '%demog_tier_one', "to_stay.duplicated_demog_mrns",  &num_dupes, &percent_dupes, "fail")
+      ;
+    %end ;
+    %else %do ;
+      insert into results (description, qa_macro, detail_dset, num_bad, percent_bad, result)
+      values ("Duplicated MRNs in demog?", '%demog_tier_one', "to_stay.duplicated_demog_mrns",  &num_dupes, &percent_dupes, "pass")
+      ;
+    %end ;
+
+    * Whats our denominator on demog? ;
+    select count(*) as num_demog_recs into :num_demog_recs from &inset ;
+
+    create table bad_demog_summary as
+    select   problem, count(*) as num_bad, (count(*) / &num_demog_recs) * 100 as percent_bad
+    from to_stay.bad_demog
+    group by problem
+    ;
+
+    * meta-QA!!! ;
+    * I wish I could check to make sure all the checks were implemented... ;
+    select problem
+    into :unexpected_problems separated by ', '
+    from bad_demog_summary
+    where problem not in (select problem from demog_checks)
+    ;
+
+    %if &sqlobs > 0 %then %do i = 1 %to 10 ;
+      %put ERROR: IN QA DEMOG_TIER_ONE--found these unexpected checks: &unexpected_problems ;
+    %end ;
+
+    create table demog_rbr_checks as
+    select e.*
+        , coalesce(num_bad, 0) as num_bad format = comma14.0
+        , coalesce(percent_bad, 0) as percent_bad format = 8.2
+        , case
+            when percent_bad gt fail_lim then 'fail'
+            when percent_bad gt warn_lim then 'warning'
+            else 'pass'
+          end as result
+    from  demog_checks as e LEFT JOIN
+          bad_demog_summary as b
+    on    e.problem = b.problem
+    ;
+
+    insert into results (description, qa_macro, detail_dset, num_bad, percent_bad, result)
+    select description, '%demog_tier_one', 'to_stay.bad_demog', num_bad, percent_bad, result
+    from demog_rbr_checks
+    ;
+
+
+  quit ;
+
+%mend demog_tier_one ;
+
 
 options mprint mlogic ;
 
 %check_vars ;
-%enroll_row_by_row ;
+%enroll_tier_one ;
+%demog_tier_one ;
 
 data to_go.&_siteabbr._results ;
   set results ;
 run ;
+
+options orientation = landscape ;
+
+** ods graphics / height = 6in width = 10in ;
+
+ods html path = "%sysfunc(pathname(to_go))" (URL=NONE)
+         body   = "vdw_enroll_demog_qa.html"
+         (title = "vdw_enroll_demog_qa output")
+          ;
+
+* ods rtf file = "&out_folder.vdw_enroll_demog_qa.rtf" device = sasemf ;
+
+proc sql rownum ;
+  select * from to_go.&_siteabbr._results ;
+quit ;
+
+
+
+run ;
+
+ods _all_ close ;
