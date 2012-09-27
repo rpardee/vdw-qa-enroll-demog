@@ -255,12 +255,13 @@ quit ;
           , count(d.mrn) as num_in_demog
           , (count(e.mrn) - count(d.mrn)) as num_bad
           , (count(d.mrn) / count(e.mrn) * 100) as percent_found
+          , 100 - CALCULATED percent_found as percent_bad
           , case
             when CALCULATED percent_found lt 96 then 'fail'
             when CALCULATED percent_found lt 98 then 'warn'
             else 'pass'
           end as result
-    into :num_enroll_mrns, :num_in_demog, :num_bad, :percent_found, :mrn_result
+    into :num_enroll_mrns, :num_in_demog, :num_bad, :percent_found, :percent_bad, :mrn_result
     from enroll_mrns as e LEFT JOIN
           &_vdw_demographic as d
     on      e.mrn = d.mrn
@@ -277,7 +278,7 @@ quit ;
     %end ;
 
     insert into results (description, qa_macro, detail_dset, num_bad, percent_bad, result)
-        values ("MRNs in enrollment found in demog?", '%enroll_tier_one', "to_stay.enroll_mrns_not_in_demog",  &num_bad, &percent_found, "&mrn_result")
+        values ("MRNs in enrollment found in demog?", '%enroll_tier_one', "to_stay.enroll_mrns_not_in_demog",  &num_bad, &percent_bad, "&mrn_result")
     ;
 
     * Whats our denominator on enrollment? ;
@@ -511,7 +512,6 @@ quit ;
 
 %mend demog_tier_one ;
 
-
 options mprint mlogic ;
 
 %check_vars ;
@@ -533,11 +533,9 @@ ods html path = "%sysfunc(pathname(to_go))" (URL=NONE)
 
 * ods rtf file = "&out_folder.vdw_enroll_demog_qa.rtf" device = sasemf ;
 
-proc sql rownum ;
+proc sql number ;
   select * from to_go.&_siteabbr._results ;
 quit ;
-
-
 
 run ;
 
