@@ -29,16 +29,19 @@ options
 * Please edit this to point to your local standard vars file. ;
 %include "\\groups\data\CTRHS\Crn\S D R C\VDW\Macros\StdVars.sas" ;
 
+* Please edit this so it points to the location where you unzipped the files/folders. ;
+%let root = \\groups\data\CTRHS\Crn\voc\enrollment\programs\staging\ ;
+
+* ======================== end edit section ======================== ;
+* ======================== end edit section ======================== ;
+* ======================== end edit section ======================== ;
+
 * Please edit this so that it points to the accompanying qa_formats.sas file. ;
-%include "\\mlt1q0\c$\Documents and Settings\pardre1\My Documents\vdw\voc_enroll\qa_formats.sas" ;
+%include "&root.\qa_formats.sas" ;
 
 * Please specify a location for "private" datasets that the e/d workgroup does not want to see ;
-libname to_stay "\\ghrisas\SASUser\pardre1\vdw\voc_enroll" ;
-libname to_go   "\\ghrisas\SASUser\pardre1\vdw\voc_enroll\send" ;
-
-* ======================== end edit section ======================== ;
-* ======================== end edit section ======================== ;
-* ======================== end edit section ======================== ;
+libname to_stay "&root.\DO_NOT_SEND" ;
+libname to_go   "&root.\to_send" ;
 
 proc sql ;
   create table results
@@ -518,7 +521,7 @@ options mprint mlogic ;
 %enroll_tier_one ;
 %demog_tier_one ;
 
-data to_go.&_siteabbr._results ;
+data to_go.&_siteabbr._tier_one_results ;
   set results ;
 run ;
 
@@ -526,15 +529,15 @@ options orientation = landscape ;
 
 ** ods graphics / height = 6in width = 10in ;
 
-ods html path = "%sysfunc(pathname(to_go))" (URL=NONE)
-         body   = "vdw_enroll_demog_qa.html"
-         (title = "vdw_enroll_demog_qa output")
+ods html path   = "%sysfunc(pathname(to_go))" (URL=NONE)
+         body   = "&_siteabbr._vdw_enroll_demog_qa.html"
+         (title = "&_SiteName.: QA for Enroll/Demographics - Tier 1")
           ;
 
 * ods rtf file = "&out_folder.vdw_enroll_demog_qa.rtf" device = sasemf ;
 
 proc sql number ;
-  select * from to_go.&_siteabbr._results ;
+  select * from to_go.&_siteabbr.tier_one_results ;
 quit ;
 
 run ;
