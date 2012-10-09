@@ -14,7 +14,7 @@
 * ======================= begin edit section ======================= ;
 
 * If roy forgets to comment this out, please do so.  Thanks/sorry! ;
-%include "\\home\pardre1\SAS\Scripts\remoteactivate.sas" ;
+* %include "\\home\pardre1\SAS\Scripts\remoteactivate.sas" ;
 
 options
   linesize  = 150
@@ -36,10 +36,11 @@ options
 * ======================== end edit section ======================== ;
 * ======================== end edit section ======================== ;
 
-* Please edit this so that it points to the accompanying qa_formats.sas file. ;
+* Test program--replaces real enroll/demog with deformed versions. ;
+* %include "\\groups\data\CTRHS\Crn\voc\enrollment\test_tier1_qa.sas" ;
+
 %include "&root.\qa_formats.sas" ;
 
-* Please specify a location for "private" datasets that the e/d workgroup does not want to see ;
 libname to_stay "&root.\DO_NOT_SEND" ;
 libname to_go   "&root.\to_send" ;
 
@@ -118,7 +119,7 @@ quit ;
   */
   proc sql ;
     create table erbr_checks
-    (   description char(50)
+    (   description char(60)
       , problem char(50)
       , warn_lim numeric
       , fail_lim numeric
@@ -154,7 +155,7 @@ quit ;
   quit ;
 
   data to_stay.bad_enroll (drop = rid) periods (keep = mrn enr_start enr_end rid) ;
-    length problem $ 40 ;
+    length problem $ 50 ;
     set &inset end = alldone ;
     if _n_ = 1 then do ;
       * Define a hash to hold all the MRN values we see, so we can check it against the ones in demog ;
@@ -360,7 +361,7 @@ quit ;
       - duplicated MRNs
       - valid values for:
           gender
-          birth_date
+          birth_date--NOT CURRENTLY CHECKED!
           hispanic
           needs_interpreter
           primary_language
@@ -382,7 +383,7 @@ quit ;
     insert into demog_checks (description, problem, warn_lim, fail_lim)
     select 'Valid values: ' || trim(name), 'bad value in ' || trim(name), 2, 5
     from expected_vars
-    where dset = 'demog' and name ne 'mrn'
+    where dset = 'demog' and name not in ('mrn', 'birth_date')
     ;
 
     * insert into demog_checks (description, problem, warn_lim, fail_lim) values ('Duplicated MRNs?', 'MRNs are not unique', 0, 0) ;
@@ -537,7 +538,7 @@ ods html path   = "%sysfunc(pathname(to_go))" (URL=NONE)
 * ods rtf file = "&out_folder.vdw_enroll_demog_qa.rtf" device = sasemf ;
 
 proc sql number ;
-  select * from to_go.&_siteabbr.tier_one_results ;
+  select * from to_go.&_siteabbr._tier_one_results ;
 quit ;
 
 run ;
