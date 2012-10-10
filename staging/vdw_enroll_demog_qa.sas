@@ -24,7 +24,7 @@ options
   linesize  = 150
   msglevel  = i
   formchar  = '|-++++++++++=|-/|<>*'
-  dsoptions = note2err
+  /* dsoptions = note2err */
   nocenter
   noovp
   nosqlremerge
@@ -40,6 +40,8 @@ options
 * ======================== end edit section ======================== ;
 * ======================== end edit section ======================== ;
 * ======================== end edit section ======================== ;
+
+%include vdw_macs ;
 
 * Test program--replaces real enroll/demog with deformed versions. ;
 * %include "//groups/data/CTRHS/Crn/voc/enrollment/test_tier1_qa.sas" ;
