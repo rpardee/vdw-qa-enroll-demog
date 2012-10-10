@@ -7,6 +7,10 @@
 * //groups/data/CTRHS/Crn/voc/enrollment/programs/vdw_enroll_demog_qa.sas
 *
 * Does comprehensive QA checks for the HMORN VDW's Enrollment & Demographics files.
+*
+* Please see the workplan found here:
+* https://appliedresearch.cancer.gov/crnportal/data-resources/vdw/quality-assurance/qa-programs/2012-qa/enroll-demog-workplan
+*
 *********************************************/
 
 * ======================= begin edit section ======================= ;
@@ -656,13 +660,13 @@ ods html path   = "%sysfunc(pathname(to_go))" (URL=NONE)
          (title = "&_SiteName.: QA for Enroll/Demographics - Tier 1 & 1.5")
           ;
 
-  title1 = "&_SiteName.: QA for Enroll/Demographics" ;
-  title2 = "Tier One Checks" ;
+  title1 "&_SiteName.: QA for Enroll/Demographics" ;
+  title2 "Tier One Checks" ;
   proc sql number ;
     select * from to_go.&_siteabbr._tier_one_results ;
   quit ;
 
-  title2 = "Tier 1.5 Checks" ;
+  title2 "Tier 1.5 Checks" ;
   %enroll_tier_one_point_five(outset = to_go.&_siteabbr._enroll_freqs) ;
   %demog_tier_one_point_five(outset = to_go.&_siteabbr._demog_freqs) ;
 
