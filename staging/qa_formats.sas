@@ -606,6 +606,10 @@ proc format cntlout = fmt ;
     'O' = 'Other'
     other = 'bad'
   ;
+  value msk
+    1 - &lowest_count = "< &lowest_count"
+    other = [comma12.0]
+  ;
 quit ;
 
 proc sql ;

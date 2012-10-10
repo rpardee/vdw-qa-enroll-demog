@@ -14,7 +14,7 @@
 * ======================= begin edit section ======================= ;
 
 * If roy forgets to comment this out, please do so.  Thanks/sorry! ;
-* %include "\\home\pardre1\SAS\Scripts\remoteactivate.sas" ;
+* %include "//home/pardre1/SAS/Scripts/remoteactivate.sas" ;
 
 options
   linesize  = 150
@@ -24,25 +24,26 @@ options
   nocenter
   noovp
   nosqlremerge
+  mprint
 ;
 
 * Please edit this to point to your local standard vars file. ;
-%include "\\groups\data\CTRHS\Crn\S D R C\VDW\Macros\StdVars.sas" ;
+%include "//groups/data/CTRHS/Crn/S D R C/VDW/Macros/StdVars.sas" ;
 
 * Please edit this so it points to the location where you unzipped the files/folders. ;
-%let root = \\groups\data\CTRHS\Crn\voc\enrollment\programs\staging\ ;
+%let root = //groups/data/CTRHS/Crn/voc/enrollment/programs/ghc_qa ;
 
 * ======================== end edit section ======================== ;
 * ======================== end edit section ======================== ;
 * ======================== end edit section ======================== ;
 
 * Test program--replaces real enroll/demog with deformed versions. ;
-* %include "\\groups\data\CTRHS\Crn\voc\enrollment\test_tier1_qa.sas" ;
+* %include "//groups/data/CTRHS/Crn/voc/enrollment/test_tier1_qa.sas" ;
 
-%include "&root.\qa_formats.sas" ;
+%include "&root./qa_formats.sas" ;
 
-libname to_stay "&root.\DO_NOT_SEND" ;
-libname to_go   "&root.\to_send" ;
+libname to_stay "&root./DO_NOT_SEND" ;
+libname to_go   "&root./to_send" ;
 
 proc sql ;
   create table results
@@ -516,7 +517,131 @@ quit ;
 
 %mend demog_tier_one ;
 
-options mprint mlogic ;
+%macro enroll_tier_one_point_five(outset = to_go.&_siteabbr._enroll_freqs) ;
+
+  %removedset(dset = &outset) ;
+
+  data &outset ;
+    length
+      enr_end 4
+      var_name $ 20
+      value $ 4
+      count 8
+      percent 8
+    ;
+    call missing(enr_end, var_name, value, count, percent) ;
+    if count ;
+  run ;
+
+  %local vlist ;
+  %let vlist =
+      enrollment_basis
+      drugcov
+      ins_commercial
+      ins_highdeductible
+      ins_medicaid
+      ins_medicare
+      ins_medicare_a
+      ins_medicare_b
+      ins_medicare_c
+      ins_medicare_d
+      ins_other
+      ins_privatepay
+      ins_selffunded
+      ins_statesubsidized
+      outside_utilization
+      plan_hmo
+      plan_indemnity
+      plan_pos
+      plan_ppo
+    ;
+
+  %local this_var ;
+  %local i ;
+  %let i = 1 ;
+  %let this_var = %scan(&vlist, &i) ;
+
+  %do %until(&this_var = ) ;
+    proc freq data = &_vdw_enroll order = formatted ;
+      tables &this_var * enr_end / missing format = msk. out = gnu ;
+      format enr_end year4. ;
+    run ;
+    proc sql ;
+      insert into &outset (enr_end, var_name, value, count, percent)
+      select enr_end, "&this_var", &this_var, count, percent
+      from gnu
+      ;
+      drop table gnu ;
+    quit ;
+    %let i = %eval(&i + 1) ;
+    %let this_var = %scan(&vlist, &i) ;
+  %end ;
+
+  proc sql ;
+    update &outset
+    set count = .a, percent = .a
+    where count between 1 and &lowest_count
+    ;
+  quit ;
+
+%mend enroll_tier_one_point_five ;
+
+%macro demog_tier_one_point_five(outset = to_go.&_siteabbr._demog_freqs) ;
+
+  %removedset(dset = &outset) ;
+
+  data &outset ;
+    length
+      gender $ 1
+      var_name $ 20
+      value $ 4
+      count 8
+      percent 8
+    ;
+    call missing(gender, var_name, value, count, percent) ;
+    if count ;
+  run ;
+
+  %local vlist ;
+  %let vlist =
+      hispanic
+      needs_interpreter
+      primary_language
+      race1
+      race2
+      race3
+      race4
+      race5
+    ;
+
+  %local this_var ;
+  %local i ;
+  %let i = 1 ;
+  %let this_var = %scan(&vlist, &i) ;
+
+  %do %until(&this_var = ) ;
+    proc freq data = &_vdw_demographic order = formatted ;
+      tables &this_var * gender / missing format = msk. out = gnu ;
+    run ;
+    proc sql ;
+      insert into &outset (gender, var_name, value, count, percent)
+      select gender, "&this_var", &this_var, count, percent
+      from gnu
+      ;
+      drop table gnu ;
+    quit ;
+    %let i = %eval(&i + 1) ;
+    %let this_var = %scan(&vlist, &i) ;
+  %end ;
+
+  proc sql ;
+    update &outset
+    set count = .a, percent = .a
+    where count between 1 and &lowest_count
+    ;
+  quit ;
+
+%mend demog_tier_one_point_five ;
 
 %check_vars ;
 %enroll_tier_one ;
@@ -526,20 +651,20 @@ data to_go.&_siteabbr._tier_one_results ;
   set results ;
 run ;
 
-options orientation = landscape ;
-
-** ods graphics / height = 6in width = 10in ;
-
 ods html path   = "%sysfunc(pathname(to_go))" (URL=NONE)
          body   = "&_siteabbr._vdw_enroll_demog_qa.html"
-         (title = "&_SiteName.: QA for Enroll/Demographics - Tier 1")
+         (title = "&_SiteName.: QA for Enroll/Demographics - Tier 1 & 1.5")
           ;
 
-* ods rtf file = "&out_folder.vdw_enroll_demog_qa.rtf" device = sasemf ;
+  title1 = "&_SiteName.: QA for Enroll/Demographics" ;
+  title2 = "Tier One Checks" ;
+  proc sql number ;
+    select * from to_go.&_siteabbr._tier_one_results ;
+  quit ;
 
-proc sql number ;
-  select * from to_go.&_siteabbr._tier_one_results ;
-quit ;
+  title2 = "Tier 1.5 Checks" ;
+  %enroll_tier_one_point_five(outset = to_go.&_siteabbr._enroll_freqs) ;
+  %demog_tier_one_point_five(outset = to_go.&_siteabbr._demog_freqs) ;
 
 run ;
 
