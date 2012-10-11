@@ -27,7 +27,7 @@ options
   /* dsoptions = note2err */
   nocenter
   noovp
-  nosqlremerge
+  /* nosqlremerge */
   mprint
 ;
 
@@ -148,7 +148,7 @@ quit ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: ins_statesubsidized', 'ins_statesubsidized has a bad value', 2, 5) ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: outside_utilization', 'outside_utilization has a bad value', 2, 5) ;
 
-    insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Start/end agreement', 'enr_end is before or on enr_start', 0, 0) ;
+    insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Start/end agreement', 'enr_end is before enr_start', 0, 0) ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Future end dates?' 'future enr_end', 1, 3) ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Plan type(s) known?', 'no plan flags set', 2, 4) ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Insurance type(s) known?', 'no insurance flags set', 2, 4) ;
@@ -172,7 +172,10 @@ quit ;
     end ;
 
     * Add the current MRN to our list if it is not already there. ;
-    mrns.ref() ;
+    * mrns.ref() ;
+    if mrns.find() ne 0 then do ;
+      mrns.add() ;
+    end ;
 
     * Periods gets everything. ;
     rid = _n_ ;
@@ -208,8 +211,8 @@ quit ;
       problem = "enrollment_basis has a bad value" ;
       output to_stay.bad_enroll ;
     end ;
-    if enr_start ge enr_end then do ;
-      problem = "enr_end is before or on enr_start" ;
+    if enr_start gt enr_end then do ;
+      problem = "enr_end is before enr_start" ;
       output to_stay.bad_enroll ;
     end ;
     if enr_end gt "&sysdate"d then do ;
