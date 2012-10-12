@@ -353,7 +353,7 @@ quit ;
     ;
     %if &sqlobs > 0 %then %do ;
       insert into results (description, qa_macro, detail_dset, num_bad, percent_bad, result)
-      values ('Do enrollment periods overlap?', '%enroll_tier_one', 'to_stay.overlapping_periods',  &sqlobs, %sysevalf(&num_enroll_recs / &sqlobs), 'fail')
+      values ('Do enrollment periods overlap?', '%enroll_tier_one', 'to_stay.overlapping_periods',  &sqlobs, %sysevalf(&sqlobs / &num_enroll_recs), 'fail')
       ;
     %end ;
     %else %do ;

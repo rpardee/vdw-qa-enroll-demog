@@ -3,5 +3,6 @@
 *.last.run
 *.rtf
 *.html
+*.png
 ghc_qa
 qa_results
