@@ -13,47 +13,47 @@ data expected_vars ;
   length name $ 32 ;
   input
     @1   dset      $
-    @9   name  $char20.
-    @33   type
-    @37   recommended_length
+    @9   name  $char32.
+    @43  type
+    @47  recommended_length
   ;
   infile datalines missover ;
 datalines ;
-demog   gender                  2
-demog   birth_date              1   4
-demog   hispanic                2
-demog   mrn                     2
-demog   needs_interpreter       2
-demog   primary_language        2
-demog   race1                   2
-demog   race2                   2
-demog   race3                   2
-demog   race4                   2
-demog   race5                   2
-enroll  mrn                     2
-enroll  enr_end                 1   4
-enroll  enr_start               1   4
-enroll  enrollment_basis        2
-enroll  drugcov                 2
-enroll  ins_commercial          2
-enroll  ins_highdeductible      2
-enroll  ins_medicaid            2
-enroll  ins_medicare            2
-enroll  ins_medicare_a          2
-enroll  ins_medicare_b          2
-enroll  ins_medicare_c          2
-enroll  ins_medicare_d          2
-enroll  ins_other               2
-enroll  ins_privatepay          2
-enroll  ins_selffunded          2
-enroll  ins_statesubsidized     2
-enroll  outside_utilization     2
-enroll  pcc                     2
-enroll  pcp                     2
-enroll  plan_hmo                2
-enroll  plan_indemnity          2
-enroll  plan_pos                2
-enroll  plan_ppo                2
+demog   gender                            2
+demog   birth_date                        1   4
+demog   hispanic                          2
+demog   mrn                               2
+demog   needs_interpreter                 2
+demog   primary_language                  2
+demog   race1                             2
+demog   race2                             2
+demog   race3                             2
+demog   race4                             2
+demog   race5                             2
+enroll  mrn                               2
+enroll  enr_end                           1   4
+enroll  enr_start                         1   4
+enroll  enrollment_basis                  2
+enroll  drugcov                           2
+enroll  ins_commercial                    2
+enroll  ins_highdeductible                2
+enroll  ins_medicaid                      2
+enroll  ins_medicare                      2
+enroll  ins_medicare_a                    2
+enroll  ins_medicare_b                    2
+enroll  ins_medicare_c                    2
+enroll  ins_medicare_d                    2
+enroll  ins_other                         2
+enroll  ins_privatepay                    2
+enroll  ins_selffunded                    2
+enroll  ins_statesubsidized               2
+enroll  outside_utilization               2
+enroll  pcc                               2
+enroll  pcp                               2
+enroll  plan_hmo                          2
+enroll  plan_indemnity                    2
+enroll  plan_pos                          2
+enroll  plan_ppo                          2
 ;
 run ;
 
@@ -571,46 +571,54 @@ zza    Zaza, Dimili, Dimli, Kirdki, Kirmanjki, Zazaki
 ;
 run ;
 
-proc format cntlout = fmt ;
-  value vtype
-    1 = "numeric"
-    2 = "char"
-  ;
-  value $flg
-    "Y"   = "yes"
-    "N"   = "no"
-    "U"   = "unknown"
-    other = "bad"
-  ;
-  value $eb
-    "I"   = "insurance"
-    "G"   = "geography"
-    "B"   = "both ins + geog"
-    "P"   = "patient only"
-    other = "bad"
-  ;
-  value $race
-    "HP" = "Native Hawaiian or Other Pacific Islander"
-    "IN" = "American Indian/Alaska Native"
-    "AS" = "Asian"
-    "BA" = "Black or African American"
-    "WH" = "White"
-    "MU" = "More than one race, particular races unknown or not reported"
-    "UN" = "Unknown or Not Reported"
-    other = 'bad'
-  ;
-  value $gend
-    'M' = 'Male'
-    'F' = 'Female'
-    'U' = 'Unknown'
-    'O' = 'Other'
-    other = 'bad'
-  ;
-  value msk
-    1 - &lowest_count = "< &lowest_count"
-    other = [comma12.0]
-  ;
-quit ;
+%macro make_formats() ;
+
+  proc format cntlout = fmt ;
+    value vtype
+      1 = "numeric"
+      2 = "char"
+    ;
+    value $flg
+      "Y"   = "yes"
+      "N"   = "no"
+      "U"   = "unknown"
+      other = "bad"
+    ;
+    value $eb
+      "I"   = "insurance"
+      "G"   = "geography"
+      "B"   = "both ins + geog"
+      "P"   = "patient only"
+      other = "bad"
+    ;
+    value $race
+      "HP" = "Native Hawaiian or Other Pacific Islander"
+      "IN" = "American Indian/Alaska Native"
+      "AS" = "Asian"
+      "BA" = "Black or African American"
+      "WH" = "White"
+      "MU" = "More than one race, particular races unknown or not reported"
+      "UN" = "Unknown or Not Reported"
+      other = 'bad'
+    ;
+    value $gend
+      'M' = 'Male'
+      'F' = 'Female'
+      'U' = 'Unknown'
+      'O' = 'Other'
+      other = 'bad'
+    ;
+    value msk
+      %if &lowest_count > 0 %then %do ;
+        1 - &lowest_count = "< &lowest_count"
+      %end ;
+      other = [comma12.0]
+    ;
+
+  quit ;
+%mend make_formats ;
+
+%make_formats ;
 
 proc sql ;
 

@@ -28,7 +28,7 @@ libname col "\\groups\data\CTRHS\Crn\voc\enrollment\programs\qa_results" ;
 %include vdw_macs ;
  */
 
-proc format ;
+proc format cntlout = sites ;
   value $s
     'HPHC' = 'Harvard'
     'HPRF' = 'HealthPartners'
@@ -36,12 +36,23 @@ proc format ;
     'SWH'  = 'Scott & White'
     'HFHS' = 'Henry Ford'
     'GHS'  = 'Geisinger'
-    'LCF'  = 'Lovelace'
+/*     'LCF'  = 'Lovelace' */
     'GHC'  = 'Group Health'
     'PAMF' = 'Palo Alto'
     'EIRH' = 'Essentia'
+    'KPCO' = 'KP Colorado'
+    'KPNW' = 'KP Northwest'
+    'KPGA' = 'KP Georgia'
+    "KPNC" = "KP Northern California"
+    "KPSC" = "KP Southern California"
+    "KPHI" = "KP Hawai'i"
+    "MPCI" = "Fallon Community Health Plan"
+    "LHS"  = "Lovelace Health Systems"
+    "KPMA" = "KP Mid-Atlantic"
   ;
 quit ;
+
+
 
 %macro do_results() ;
 
@@ -131,6 +142,8 @@ quit ;
   %do_results ;
   %do_freqs(nom = enroll_freqs, byvar = enr_end) ;
   %do_freqs(nom = demog_freqs, byvar = gender) ;
+
+  %stack_datasets(inlib = raw, nom = noteworthy_vars, outlib = col) ;
 
   proc sql ;
     delete from col.enroll_freqs
@@ -241,12 +254,22 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf" device = sasemf style = magnify
   title1 "Enrollment/Demographics QA Report" ;
   proc sql number ;
     * describe table dictionary.tables ;
-    title2 "Sites sumitting QA Results" ;
+    create table submitting_sites as
     select put(prxchange("s/(.*)_TIER_ONE_RESULTS\s*$/$1/i", -1, memname), $s.) as site label = "Site"
         , datepart(crdate) as date_submitted format = mmddyy10. label = "Submission Date"
     from dictionary.tables
     where libname = 'RAW' and memname like '%_TIER_ONE_RESULTS'
     ;
+    title2 "Sites submitting QA Results" ;
+    select * from submitting_sites ;
+    title2 "Sites that have not yet submitted QA Results" ;
+
+    select label as site label = "Site"
+    from sites
+    where label not in (select site from submitting_sites)
+    order by label
+    ;
+
     title2 "Tier One (objective) checks" ;
     select * from col.tier_one_results (drop = qa_macro) ;
   quit ;
