@@ -19,10 +19,15 @@ options
   nocenter
   noovp
   nosqlremerge
+  mprint
 ;
 
 libname raw "\\groups\data\CTRHS\Crn\voc\enrollment\programs\qa_results\raw" ;
 libname col "\\groups\data\CTRHS\Crn\voc\enrollment\programs\qa_results" ;
+
+* We need this so that lowest_count is defined. ;
+%include "//ghrisas/Warehouse/Sasdata/CRN_VDW/lib/StdVars.sas" ;
+%include "\\groups\data\CTRHS\Crn\voc\enrollment\programs\staging\qa_formats.sas" ;
 
 /* %include "//ghrisas/Warehouse/Sasdata/CRN_VDW/lib/StdVars.sas" ;
 %include vdw_macs ;
@@ -46,7 +51,7 @@ proc format cntlout = sites ;
     "KPNC" = "KP Northern California"
     "KPSC" = "KP Southern California"
     "KPH"  = "KP Hawai'i"
-    "MPCI" = "Fallon Community Health Plan"
+    "FAL"  = "Fallon Community Health Plan"
     "LHS"  = "Lovelace Health Systems"
     "KPMA" = "KP Mid-Atlantic"
   ;
@@ -60,9 +65,19 @@ proc format cntlout = sites ;
     'UN' = 'Unknown or Not Reported'
     Other = 'bad'
   ;
-
+  value $eb
+    "G" = "Geographic Basis"
+    "I" = "Insurance Basis"
+    "B" = "Both Insurance and Geographic bases"
+    "P" = "Non-enrollee Patient"
+  ;
+  value $gen
+    'M' = 'Male'
+    'F' = 'Female'
+    'O' = 'Other Gender'
+    'U' = 'Unknown Gender'
+  ;
 quit ;
-
 
 
 %macro do_results() ;
@@ -87,26 +102,36 @@ quit ;
     ;
   run ;
 
+  proc sql ;
+    * These guys got bit by a bug when running on a unix system--their fails were bogus. ;
+    update tier_one_results
+    set result = 'pass'
+    where description = 'Are all vars in the spec in the dataset & of proper type?' and site in ('KPNC', 'KPMA')
+    ;
+  quit ;
+
+  data col.norm_tier_one_results ;
+    set tier_one_results ;
+  run ;
+
   proc transpose data = tier_one_results out = col.tier_one_results(drop = _:) ;
     var result ;
     by qa_macro table description ;
     id site ;
     idlabel sitename ;
   run ;
+
 %mend do_results ;
 
 %macro do_vars() ;
   %stack_datasets(inlib = raw, nom = noteworthy_vars, outlib = col) ;
-  * We need this so that lowest_count is defined. ;
-  %include "//ghrisas/Warehouse/Sasdata/CRN_VDW/lib/StdVars.sas" ;
-  %include "\\groups\data\CTRHS\Crn\voc\enrollment\programs\staging\qa_formats.sas" ;
   proc sql ;
     **  Had some problems in KPHI and possibly elsewhere--patch that up. ;
     * select * from col.noteworthy_vars
     where name in (select name from expected_vars) and outcome = 'bad type'
     ;
 
-    * delete from col.noteworthy_vars
+    delete from col.noteworthy_vars
     where name in (select name from expected_vars) and outcome = 'bad type'
     ;
   quit ;
@@ -172,6 +197,27 @@ quit ;
 
 %mend do_freqs ;
 
+%macro misc_wrangling() ;
+  proc sql ;
+    create table col.raw_enrollment_counts as
+    select    site, enr_end
+            , sum(total) as total_count label = "No. of enrollment records ending on this date." format = comma12.0
+            , count(*) as num_recs
+    from    col.enroll_freqs
+    where var_name = 'outside_utilization'
+    group by site, enr_end
+    ;
+    create table col.raw_gender_counts as
+    select site, gender, sum(total) as total_count, count(*) as num_recs
+    from col.demog_freqs
+    where var_name = 'hispanic'
+    group by site, gender
+    ;
+  quit ;
+
+%mend misc_wrangling ;
+
+
 %macro regen() ;
   %do_results ;
   %do_vars ;
@@ -187,19 +233,24 @@ quit ;
     ;
   quit ;
 
+  %misc_wrangling ;
+
 %mend regen ;
 
 %macro report() ;
   proc sort data = col.enroll_freqs out = gnu ;
     by var_name value site enr_end ;
     * where var_name in ('outside_utilization', 'plan_hmo', 'drugcov') and value in ('Y') ;
-    where enr_end gt '01jan1990'd AND value not in ('U', 'N') ;
+    *  Enforcing a minimal number of records, just to keep out e.g., the year in which FALLON had 100% of their 29 (or however many) records with ins_medicare = y. ;
+    where enr_end between '01jan1990'd and "&sysdate"d AND value not in ('U', 'N') and total ge 1000 ;
   run ;
 
-  data gnu ;
+  data gnu enrollment_basis ;
     length site $ 20 ;
     set gnu ;
     site = put(site, $s.) ;
+    if var_name = 'enrollment_basis' then output enrollment_basis ;
+    else output gnu ;
     label
       enr_end = "Period end"
       pct = "Percent of *records* (not people)"
@@ -207,14 +258,8 @@ quit ;
     ;
   run ;
 
-/*
-  proc sgpanel data = gnu ;
-    panelby var_name value ;
-    loess x = enr_end y = pct / group = site ;
-    rowaxis grid ;
-    format enr_end year4. site $s. ;
-  run ;
-*/
+  title2 "Enrollment Variables (data between 1990 and 2012 only)" ;
+
   proc sgplot data = gnu ;
     series x = enr_end y = pct / group = site lineattrs = (thickness = .1 CM) ;
     * loess x = enr_end y = pct / group = site lineattrs = (thickness = .1 CM) ;
@@ -223,6 +268,28 @@ quit ;
     by var_name value ;
   run ;
 
+  title3 "Enrollment Basis" ;
+
+  proc sgpanel data = enrollment_basis ;
+    panelby value / columns = 2 rows = 2 novarname ;
+    loess x = enr_end y = pct / group = site smooth = .2 ;
+    format enr_end year4. value $eb. ;
+    * where enr_end between '01jan1990'd and "&sysdate"d ;
+  run ;
+
+  title3 "Raw record counts." ;
+  proc sgpanel data = col.raw_enrollment_counts ;
+    panelby site / columns = 2 rows = 2 uniscale = column novarname ;
+    loess x = enr_end y = total_count / smooth = .2 ;
+    format enr_end year4. site $s. ;
+    where site ne 'KPNC' and enr_end between '01jan1990'd and "&sysdate"d ;
+  run ;
+  proc sgpanel data = col.raw_enrollment_counts ;
+    panelby site / columns = 2 uniscale = column novarname ;
+    loess x = enr_end y = total_count / smooth = .2 ;
+    format enr_end year4. site $s. ;
+    where site eq 'KPNC' and enr_end between '01jan1990'd and "&sysdate"d ;
+  run ;
 %mend report ;
 
 %macro report_demog() ;
@@ -258,44 +325,47 @@ quit ;
   title2 "Demographics Descriptives" ;
 
   proc sgpanel data = generic ;
-    panelby gender ;
+    panelby gender / novarname ;
     * vbar site / response = pct2 group = gender stat = sum ;
     vbar site / response = pct2 group = value stat = sum ;
     by var_name ;
+    format gender $gen. ;
   run ;
 
   title3 "Common Values for Language" ;
   proc sgpanel data = lang ;
-    panelby gender ;
+    panelby gender / novarname ;
     * vbar site / response = pct2 group = gender stat = sum ;
     vbar site / response = pct2 group = value stat = sum ;
+    format gender $gen. ;
     where lang_type = 'common' ;
   run ;
 
   title3 "Uncommon Values for Language" ;
   proc sgpanel data = lang ;
-    panelby gender ;
+    panelby gender / novarname ;
     * vbar site / response = pct2 group = gender stat = sum ;
     vbar site / response = pct2 group = value stat = sum ;
+    format gender $gen. ;
     where lang_type = 'uncommon' ;
   run ;
 
   title3 "Common Values for Race" ;
   proc sgpanel data = race ;
-    panelby gender ;
+    panelby gender / novarname ;
     * vbar site / response = pct2 group = gender stat = sum ;
     vbar site / response = pct2 group = value stat = sum ;
     where race_type = 'common' ;
-    format value $race. ;
+    format value $race. gender $gen. ;
   run ;
 
   title3 "Uncommon Values for Race" ;
   proc sgpanel data = race ;
-    panelby gender ;
+    panelby gender / novarname ;
     * vbar site / response = pct2 group = gender stat = sum ;
     vbar site / response = pct2 group = value stat = sum ;
     where race_type = 'uncommon' ;
-    format value $race. ;
+    format value $race. gender $gen. ;
   run ;
 
 %mend report_demog ;
@@ -313,6 +383,8 @@ ods html path = "&out_folder" (URL=NONE)
           ;
 
 ods rtf file = "&out_folder.enroll_demog_qa.rtf" device = sasemf style = magnify ;
+
+  footnote1 " " ;
 
   title1 "Enrollment/Demographics QA Report" ;
   proc sql number ;
@@ -335,8 +407,21 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf" device = sasemf style = magnify
     order by label
     ;
 
-    title2 "Tier One (objective) checks" ;
+    title2 "Tier One (objective) checks--overall" ;
     select * from col.tier_one_results (drop = qa_macro) ;
+
+    reset nonumber ;
+
+    title2 "Tier One--checks that tripped any failures or warnings" ;
+    select description
+          , sum(case when result = 'fail' then 1 else 0 end) as num_fails label = "Fails"
+          , sum(case when result in ('warn', 'warning') then 1 else 0 end) as num_warns label = "Warnings"
+          , sum(case when result = 'pass' then 1 else 0 end) as num_passes label = "Passes"
+    from col.norm_tier_one_results
+    where description in (select description from col.norm_tier_one_results where result in ('fail', 'warn', 'warning'))
+    group by description
+    order by 4
+    ;
   quit ;
 
   %report ;
@@ -361,3 +446,14 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf" device = sasemf style = magnify
  ods _all_ close ;
 
 
+proc format ;
+  value tob
+    1 = "current user"
+    2 = "never"
+    3 = "quit/former user"
+    4 = "passive"
+    5 = "environmental exposure"
+    6 = "not asked"
+    7 = "conflicting"
+  ;
+quit ;

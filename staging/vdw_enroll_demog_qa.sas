@@ -272,7 +272,7 @@ quit ;
           , 100 - CALCULATED percent_found as percent_bad
           , case
             when CALCULATED percent_found lt 96 then 'fail'
-            when CALCULATED percent_found lt 98 then 'warn'
+            when CALCULATED percent_found lt 98 then 'warning'
             else 'pass'
           end as result
     into :num_enroll_mrns, :num_in_demog, :num_bad, :percent_found, :percent_bad, :mrn_result
