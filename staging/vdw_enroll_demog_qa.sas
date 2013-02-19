@@ -573,7 +573,7 @@ quit ;
   %do %until(&this_var = ) ;
     proc freq data = &_vdw_enroll order = formatted ;
       tables &this_var * enr_end / missing format = msk. out = gnu ;
-      format enr_end year4. ;
+      format enr_end year4. &this_var ;
     run ;
     proc sql ;
       insert into &outset (enr_end, var_name, value, count, percent)
@@ -631,6 +631,7 @@ quit ;
   %do %until(&this_var = ) ;
     proc freq data = &_vdw_demographic order = formatted ;
       tables &this_var * gender / missing format = msk. out = gnu ;
+      format &this_var ;
     run ;
     proc sql ;
       insert into &outset (gender, var_name, value, count, percent)

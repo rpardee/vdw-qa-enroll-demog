@@ -12,10 +12,10 @@
 data expected_vars ;
   length name $ 32 ;
   input
-    @1   dset      $
-    @9   name  $char32.
-    @43  type
-    @47  recommended_length
+    @1   dset               $char6.
+    @9   name               $char32.
+    @43  type               1.0
+    @47  recommended_length 1.0
   ;
   infile datalines missover ;
 datalines ;

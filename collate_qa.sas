@@ -45,11 +45,22 @@ proc format cntlout = sites ;
     'KPGA' = 'KP Georgia'
     "KPNC" = "KP Northern California"
     "KPSC" = "KP Southern California"
-    "KPHI" = "KP Hawai'i"
+    "KPH"  = "KP Hawai'i"
     "MPCI" = "Fallon Community Health Plan"
     "LHS"  = "Lovelace Health Systems"
     "KPMA" = "KP Mid-Atlantic"
   ;
+  value $race
+    'HP' = 'Native Hawaiian or Other Pacific Islander'
+    'IN' = 'American Indian/Alaska Native'
+    'AS' = 'Asian'
+    'BA' = 'Black or African American'
+    'WH' = 'White'
+    'MU' = 'More than one race, particular races unknown or not reported'
+    'UN' = 'Unknown or Not Reported'
+    Other = 'bad'
+  ;
+
 quit ;
 
 
@@ -84,9 +95,32 @@ quit ;
   run ;
 %mend do_results ;
 
+%macro do_vars() ;
+  %stack_datasets(inlib = raw, nom = noteworthy_vars, outlib = col) ;
+  * We need this so that lowest_count is defined. ;
+  %include "//ghrisas/Warehouse/Sasdata/CRN_VDW/lib/StdVars.sas" ;
+  %include "\\groups\data\CTRHS\Crn\voc\enrollment\programs\staging\qa_formats.sas" ;
+  proc sql ;
+    **  Had some problems in KPHI and possibly elsewhere--patch that up. ;
+    * select * from col.noteworthy_vars
+    where name in (select name from expected_vars) and outcome = 'bad type'
+    ;
+
+    * delete from col.noteworthy_vars
+    where name in (select name from expected_vars) and outcome = 'bad type'
+    ;
+  quit ;
+%mend do_vars ;
+
+
 %macro do_freqs(nom, byvar = enr_end) ;
 
   %stack_datasets(inlib = raw, nom = &nom, outlib = work) ;
+
+  %if &byvar = enr_end %then %do ;
+    %let fmt = %str(format = mmddyy10.) ;
+  %end ;
+  %else %let fmt = ;
 
   proc sql ;
     create table tots as
@@ -96,7 +130,7 @@ quit ;
     ;
 
     create table nom as
-    select r.site, r.var_name, r.&byvar, r.value, r.count / total as pct format = percent8.2
+    select r.site, r.var_name, r.&byvar &fmt., r.value, t.total, r.count / t.total as pct format = percent8.2
     from  &nom as r INNER JOIN
           tots as t
     on    r.site = t.site AND
@@ -121,10 +155,10 @@ quit ;
     ;
 
     create table col.&nom as
-    select site, var_name, &byvar, value, pct
+    select site, var_name, &byvar &fmt., value, total, pct
     from nom
     UNION ALL
-    select site, var_name, &byvar, 'Y' as value, 0 as pct
+    select site, var_name, &byvar &fmt., 'Y' as value, 0 as total, 0 as pct
     from supplement
     order by var_name, value, site, &byvar
     ;
@@ -140,10 +174,9 @@ quit ;
 
 %macro regen() ;
   %do_results ;
+  %do_vars ;
   %do_freqs(nom = enroll_freqs, byvar = enr_end) ;
   %do_freqs(nom = demog_freqs, byvar = gender) ;
-
-  %stack_datasets(inlib = raw, nom = noteworthy_vars, outlib = col) ;
 
   proc sql ;
     delete from col.enroll_freqs
@@ -160,7 +193,7 @@ quit ;
   proc sort data = col.enroll_freqs out = gnu ;
     by var_name value site enr_end ;
     * where var_name in ('outside_utilization', 'plan_hmo', 'drugcov') and value in ('Y') ;
-    where enr_end gt '01jan1970'd AND value not in ('U', 'N') ;
+    where enr_end gt '01jan1990'd AND value not in ('U', 'N') ;
   run ;
 
   data gnu ;
@@ -184,6 +217,7 @@ quit ;
 */
   proc sgplot data = gnu ;
     series x = enr_end y = pct / group = site lineattrs = (thickness = .1 CM) ;
+    * loess x = enr_end y = pct / group = site lineattrs = (thickness = .1 CM) ;
     yaxis grid ;
     format enr_end year4. ;
     by var_name value ;
@@ -194,25 +228,36 @@ quit ;
 %macro report_demog() ;
   proc sort data = col.demog_freqs out = gnu ;
     by var_name gender value site ;
-    where value not in ('unk', 'und', 'UN') ;
+    where value not in ('unk', 'und') and var_name not in ('race2', 'race3', 'race4', 'race5') ;
     * where var_name in ('hispanic') ; * AND value not in ('U', 'N') ;
   run ;
 
-  data nonlang lang ;
+  data generic lang race ;
     set gnu ;
     pct2 = 100 * coalesce(pct, 0) ;
-    if var_name = 'primary_language' then do ;
-      if value = 'unk' then value = 'und' ;
-      if value not in ('und', 'eng', 'spa') then lang_type = 'uncommon' ;
-      else lang_type = 'common' ;
-      if pct > 0 then output lang ;
+    select(var_name) ;
+      when('primary_language') do ;
+        if value = 'unk' then value = 'und' ;
+        if value not in ('und', 'eng', 'spa') then lang_type = 'uncommon' ;
+        else lang_type = 'common' ;
+        if pct > 0 then output lang ;
+      end ;
+      when('race1') do ;
+        if value not in ('WH', 'UN') then race_type = 'uncommon' ;
+        else race_type = 'common' ;
+        if pct > 0 then output race ;
+      end ;
+      otherwise output generic ;
     end ;
-    else output nonlang ;
+
+    label
+      pct2 = "Percent of records"
+    ;
   run ;
 
   title2 "Demographics Descriptives" ;
 
-  proc sgpanel data = nonlang ;
+  proc sgpanel data = generic ;
     panelby gender ;
     * vbar site / response = pct2 group = gender stat = sum ;
     vbar site / response = pct2 group = value stat = sum ;
@@ -233,6 +278,24 @@ quit ;
     * vbar site / response = pct2 group = gender stat = sum ;
     vbar site / response = pct2 group = value stat = sum ;
     where lang_type = 'uncommon' ;
+  run ;
+
+  title3 "Common Values for Race" ;
+  proc sgpanel data = race ;
+    panelby gender ;
+    * vbar site / response = pct2 group = gender stat = sum ;
+    vbar site / response = pct2 group = value stat = sum ;
+    where race_type = 'common' ;
+    format value $race. ;
+  run ;
+
+  title3 "Uncommon Values for Race" ;
+  proc sgpanel data = race ;
+    panelby gender ;
+    * vbar site / response = pct2 group = gender stat = sum ;
+    vbar site / response = pct2 group = value stat = sum ;
+    where race_type = 'uncommon' ;
+    format value $race. ;
   run ;
 
 %mend report_demog ;
@@ -264,9 +327,11 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf" device = sasemf style = magnify
     select * from submitting_sites ;
     title2 "Sites that have not yet submitted QA Results" ;
 
+    * select * from sites ;
+
     select label as site label = "Site"
     from sites
-    where label not in (select site from submitting_sites)
+    where FMTNAME = 'S' AND label not in (select site from submitting_sites )
     order by label
     ;
 
@@ -278,6 +343,21 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf" device = sasemf style = magnify
 
   %report_demog ;
 
-ods _all_ close ;
+  proc sql ;
+    title2 "Noteworthy Variables" ;
+    create table vars as
+    select put(site, $s.) as Site, dset, outcome, name as variable, put(o_type, vtype.) as type, coalesce(label, '[no label]') as label
+    from col.noteworthy_vars
+    order by 1, 2, 3, 4
+    ;
+  quit ;
+
+  proc report nowd data=vars ;
+    define site / group ;
+    define dset / group ;
+    define label / width = 100 ;
+  run;
+
+ ods _all_ close ;
 
 
