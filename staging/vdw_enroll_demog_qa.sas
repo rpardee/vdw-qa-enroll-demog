@@ -13,6 +13,16 @@
 *
 *********************************************/
 
+/********************************************
+*         UPDATE LOG
+*********************************************
+* Paul Hitz
+* Essentia Institute of Rural Health
+* (218) 786-1008
+* pjh19401 (search string)
+* Added checks for the Languages table.
+*********************************************/
+
 * ======================= begin edit section ======================= ;
 * ======================= begin edit section ======================= ;
 * ======================= begin edit section ======================= ;
@@ -47,6 +57,7 @@ options
 * %include "//groups/data/CTRHS/Crn/voc/enrollment/test_tier1_qa.sas" ;
 
 %include "&root./qa_formats.sas" ;
+%include "&root./vdw_lang_qa.sas" ;
 
 libname to_stay "&root./DO_NOT_SEND" ;
 libname to_go   "&root./to_send" ;
@@ -68,11 +79,17 @@ quit ;
   run ;
   proc contents noprint data = &_vdw_enroll       out = evars(keep = name type length label) ;
   run ;
+  * Added pjh19401 ;
+  proc contents noprint data = &_vdw_language     out = lvars(keep = name type length label) ;
+  run ;
 
   data observed_vars ;
-    set evars (in = e) dvars ;
+* pjh19401    set evars (in = e) dvars ;
+    set evars (in = e) lvars (in = l) dvars ;
     name = lowcase(name) ;
     if e then dset = 'enroll' ;
+  else
+    if l then dset = 'lang';
     else      dset = 'demog' ;
   run ;
 
@@ -526,19 +543,233 @@ quit ;
 
 %mend demog_tier_one ;
 
-%macro enroll_tier_one_point_five(outset = to_go.&_siteabbr._enroll_freqs) ;
+%macro make_denoms(outset = to_stay.denoms) ;
+
+  /* This is copied from the make_denoms standard macro--adding in all the enroll vars. */
+  %local round_to start_year end_year ;
+  %let round_to = 0.0001 ;
+  %let start_year = 1990 ;
+  %let end_year = %sysfunc(year("&sysdate9"d)) ;
+
+  proc format ;
+    ** 0-17, 18-64, 65+ ;
+    value shrtage
+      low -< 18 = '0 to 17'
+      18  -< 65 = '18 to 64'
+      65 - high = '65+'
+    ;
+    value agecat
+      low -< 5 =  '00to04'
+      5   -< 10 = '05to09'
+      10  -< 15 = '10to14'
+      15  -< 20 = '15to19'
+      20  -< 30 = '20to29'
+      30  -< 40 = '30to39'
+      40  -< 50 = '40to49'
+      50  -< 60 = '50to59'
+      60  -< 65 = '60to64'
+      65  -< 70 = '65to69'
+      70  -< 75 = '70to74'
+      75 - high = 'ge_75'
+    ;
+    ** For setting priority order to favor values of Y. ;
+    value $dc
+      'Y'   = 'A'
+      'N'   = 'B'
+      other = 'C'
+    ;
+    ** For translating back to permissible values of DrugCov ;
+    value $cd
+      'A' = 'Y'
+      'B' = 'N'
+      'C' = 'U'
+    ;
+    value $Race
+      'WH' = 'White'
+      'BA' = 'Black'
+      'IN' = 'Native'
+      'AS' = 'Asian'
+      'HP' = 'Pac Isl'
+      'MU' = 'Multiple'
+      Other = 'Unknown'
+    ;
+    value $eb
+      'I' = 'Insurance'
+      'G' = 'Geography'
+      'B' = 'Both Ins + Geog'
+      'P' = 'Non-member patient'
+    ;
+    value $non
+      ' ', '' = 'missing'
+      other = 'not missing'
+    ;
+    value bin
+      0 = 'N'
+      1 = 'Y'
+    ;
+  quit ;
+
+  data all_years ;
+    do year = &start_year to &end_year ;
+      first_day = mdy(1, 1, year) ;
+      last_day  = mdy(12, 31, year) ;
+      ** Being extra anal-retentive here--we are probably going to hit a leap year or two. ;
+      num_days  = last_day - first_day + 1 ;
+      output ;
+    end ;
+    format first_day last_day mmddyy10. ;
+  run ;
+
+  proc sql ;
+    /*
+      Dig this funky join--its kind of a cartesian product, limited to
+      enroll records that overlap the year from all_years.
+      enrolled_proportion is the # of days between <<earliest of enr_end and last-day-of-year>>
+      and <<latest of enr_start and first-day-of-year>> divided by the number of
+      days in the year.
+
+      Nice thing here is we can do calcs on all the years desired in a single
+      statement.  I was concerned about perf, but this ran quite quickly--the
+      whole program took about 4 minutes of wall clock time to do 1998 - 2007 @ GH.
+
+    */
+    create table gnu as
+    select mrn
+          , year
+          , min(put(drugcov            , $dc.)) as drugcov
+          , min(put(outside_utilization, $dc.)) as outside_utilization
+          , min(put(enrollment_basis   , $eb.)) as enrollment_basis
+          , min(put(ins_commercial     , $dc.)) AS ins_commercial
+          , min(put(ins_highdeductible , $dc.)) AS ins_highdeductible
+          , min(put(ins_medicaid       , $dc.)) AS ins_medicaid
+          , min(put(ins_medicare       , $dc.)) AS ins_medicare
+          , min(put(ins_medicare_a     , $dc.)) AS ins_medicare_a
+          , min(put(ins_medicare_b     , $dc.)) AS ins_medicare_b
+          , min(put(ins_medicare_c     , $dc.)) AS ins_medicare_c
+          , min(put(ins_medicare_d     , $dc.)) AS ins_medicare_d
+          , min(put(ins_other          , $dc.)) AS ins_other
+          , min(put(ins_privatepay     , $dc.)) AS ins_privatepay
+          , min(put(ins_selffunded     , $dc.)) AS ins_selffunded
+          , min(put(ins_statesubsidized, $dc.)) AS ins_statesubsidized
+          , min(put(plan_hmo           , $dc.)) AS plan_hmo
+          , min(put(plan_indemnity     , $dc.)) AS plan_indemnity
+          , min(put(plan_pos           , $dc.)) AS plan_pos
+          , min(put(plan_ppo           , $dc.)) AS plan_ppo
+          , max((prxmatch("/[^ 0]/", pcc) > 0)) as pcc_probably_valid /* Experimental--GH has all-0 invalid values */
+          , max((prxmatch("/[^ 0]/", pcp) > 0)) as pcp_probably_valid /* Experimental--GH has all-0 invalid values */
+          /* This depends on there being no overlapping periods to work! */
+          , sum((min(enr_end, last_day) - max(enr_start, first_day) + 1) / num_days) as enrolled_proportion
+    from  &_vdw_enroll as e INNER JOIN
+          all_years as y
+    on    e.enr_start le y.last_day AND
+          e.enr_end   ge y.first_day
+    group by mrn, year
+    ;
+
+    reset outobs = max warn ;
+
+    create table with_demog as
+    select g.mrn
+        , year
+        , put(%calcage(birth_date, refdate = mdy(1, 1, year)), agecat.) as agegroup label = "Age on 1-jan of [[year]]"
+        , gender
+        , put(race1, $race.)             as race length = 10
+        , put(hispanic           , $cd.) as hispanic
+        , put(needs_interpreter  , $cd.) as needs_interpreter
+        , put(drugcov            , $cd.) as drugcov
+        , put(outside_utilization, $cd.) as outside_utilization
+        , enrollment_basis
+        , put(ins_commercial     , $cd.) AS ins_commercial
+        , put(ins_highdeductible , $cd.) AS ins_highdeductible
+        , put(ins_medicaid       , $cd.) AS ins_medicaid
+        , put(ins_medicare       , $cd.) AS ins_medicare
+        , put(ins_medicare_a     , $cd.) AS ins_medicare_a
+        , put(ins_medicare_b     , $cd.) AS ins_medicare_b
+        , put(ins_medicare_c     , $cd.) AS ins_medicare_c
+        , put(ins_medicare_d     , $cd.) AS ins_medicare_d
+        , put(ins_other          , $cd.) AS ins_other
+        , put(ins_privatepay     , $cd.) AS ins_privatepay
+        , put(ins_selffunded     , $cd.) AS ins_selffunded
+        , put(ins_statesubsidized, $cd.) AS ins_statesubsidized
+        , put(plan_hmo           , $cd.) AS plan_hmo
+        , put(plan_indemnity     , $cd.) AS plan_indemnity
+        , put(plan_pos           , $cd.) AS plan_pos
+        , put(plan_ppo           , $cd.) AS plan_ppo
+        , put(pcp_probably_valid , bin.) AS pcp_probably_valid
+        , put(pcc_probably_valid , bin.) AS pcc_probably_valid
+        , enrolled_proportion
+    from gnu as g LEFT JOIN
+         &_vdw_demographic as d
+    on   g.mrn = d.mrn
+    ;
+
+    %local vlist ;
+    %let vlist = year, agegroup, gender, race, hispanic, needs_interpreter, drugcov, outside_utilization, enrollment_basis,
+                ins_commercial, ins_highdeductible, ins_medicaid, ins_medicare,
+                ins_medicare_a, ins_medicare_b, ins_medicare_c, ins_medicare_d, ins_other,
+                ins_privatepay, ins_selffunded, ins_statesubsidized, plan_hmo, plan_indemnity,
+                plan_pos, plan_ppo, pcp_probably_valid, pcc_probably_valid ;
+
+    create table &outset as
+    select &vlist
+        , round(sum(enrolled_proportion), &round_to) as prorated_total format = comma20.2 label = "Pro-rated number of people enrolled in [[year]] (accounts for partial enrollments)"
+        , count(mrn)               as total          format = comma20.0 label = "Number of people enrolled at least one day in [[year]]"
+    from with_demog
+    group by &vlist
+    order by &vlist
+    ;
+
+    proc datasets nolist library = to_stay ;
+      modify denoms ;
+        label
+          year                = "Year of Enrollment"
+          agegroup            = "Age Group"
+          gender              = "Gender of Enrollee"
+          race                = "Race of Enrollee"
+          hispanic            = "Enrollee is Hispanic?"
+          needs_interpreter   = "Enrollee Needs an Interpreter?"
+          drugcov             = "Drug Coverage"
+          outside_utilization = "Do we know we have uncaptured encounters or rx fills for this person/period?"
+          enrollment_basis    = "What is the reason this person is in the enrollment file?"
+          ins_commercial      = "Has commercial insurance?"
+          ins_highdeductible  = "Has high-deductible insurance?"
+          ins_medicaid        = "Has medicaid coverage?"
+          ins_medicare        = "Has any type of medicare insurance?"
+          ins_medicare_a      = "Has medicare part A insurance?"
+          ins_medicare_b      = "Has medicare part B insurance?"
+          ins_medicare_c      = "Has medicare part C insurance?"
+          ins_medicare_d      = "Has medicare part D insurance?"
+          ins_other,          = "Has 'other' insurance?"
+          ins_privatepay      = "Has private pay insurance?"
+          ins_selffunded      = "Has self-funded insurance?"
+          ins_statesubsidized = "Has state-subsizided insurance?"
+          plan_hmo            = "Has HMO plan coverage?"
+          plan_indemnity      = "Has Indemnity coverage?"
+          plan_pos            = "Has Point-of-Service coverage?"
+          plan_ppo            = "Has Preferred-Provider-Organization coverage?"
+          pcp_probably_valid  = "Has a valid Primary Care Physician assignment? (EXPERIMENTAL)"
+          pcc_probably_valid  = "Has a valid Primary Care Clinic assignment? (EXPERIMENTAL)"
+        ;
+    quit ;
+
+  quit ;
+
+%mend make_denoms ;
+
+
+%macro enroll_tier_one_point_five(inset = to_stay.denoms, outset = to_go.&_siteabbr._enroll_freqs) ;
 
   %removedset(dset = &outset) ;
 
   data &outset ;
     length
-      enr_end 4
+      year 4
       var_name $ 20
       value $ 4
       count 8
       percent 8
     ;
-    call missing(enr_end, var_name, value, count, percent) ;
+    call missing(year, var_name, value, count, percent) ;
     if count ;
   run ;
 
@@ -546,6 +777,8 @@ quit ;
   %let vlist =
       enrollment_basis
       drugcov
+      pcp_probably_valid
+      pcc_probably_valid
       ins_commercial
       ins_highdeductible
       ins_medicaid
@@ -563,6 +796,11 @@ quit ;
       plan_indemnity
       plan_pos
       plan_ppo
+      agegroup
+      gender
+      race
+      hispanic
+      needs_interpreter
     ;
 
   %local this_var ;
@@ -571,13 +809,27 @@ quit ;
   %let this_var = %scan(&vlist, &i) ;
 
   %do %until(&this_var = ) ;
-    proc freq data = &_vdw_enroll order = formatted ;
-      tables &this_var * enr_end / missing format = msk. out = gnu ;
-      format enr_end year4. &this_var ;
+    proc freq data = &inset order = formatted ;
+      tables &this_var * year / missing format = msk. out = gnu plots = none ;
+      weight prorated_total ;
+      format &this_var ;
     run ;
+    * EXPERIMENTAL!   ;
+    %if &sysver ge 9.1 and %sysprod(graph) = 1 %then %do ;
+
+      * Put this line before opening any ODS destinations. ;
+      options orientation = landscape ;
+      ods graphics / height = 6in width = 10in ;
+
+      proc sgplot data = gnu ;
+        loess x = year y = count / group = &this_var lineattrs = (thickness = .1 CM) ;
+        format count comma10.0 ;
+      run ;
+    %end ;
+
     proc sql ;
-      insert into &outset (enr_end, var_name, value, count, percent)
-      select enr_end, "&this_var", &this_var, count, percent
+      insert into &outset (year, var_name, value, count, percent)
+      select year, "&this_var", &this_var, count, percent
       from gnu
       ;
       drop table gnu ;
@@ -615,7 +867,6 @@ quit ;
   %let vlist =
       hispanic
       needs_interpreter
-      primary_language
       race1
       race2
       race3
@@ -656,6 +907,9 @@ quit ;
 %check_vars ;
 %enroll_tier_one ;
 %demog_tier_one ;
+%lang_tier_one; *pjh19401;
+
+%make_denoms ;
 
 data to_go.&_siteabbr._tier_one_results ;
   set results ;

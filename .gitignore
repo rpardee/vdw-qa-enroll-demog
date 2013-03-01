@@ -1,3 +1,5 @@
+*.sas7bdat
+*.sublime*
 *.log
 *.lst
 *.last.run
@@ -6,3 +8,4 @@
 *.png
 ghc_qa
 qa_results
+with_lang
