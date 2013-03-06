@@ -85,7 +85,10 @@ quit ;
 
   data observed_vars ;
 * pjh19401    set evars (in = e) dvars ;
-    set evars (in = e) lvars (in = l) dvars ;
+    set
+      lvars (in = l)
+      evars (in = e)
+      dvars ;
     name = lowcase(name) ;
     if e then dset = 'enroll' ;
   else
@@ -95,7 +98,6 @@ quit ;
 
   proc sort data = expected_vars ; by dset name ; run ;
   proc sort data = observed_vars ; by dset name ; run ;
-
 
   data to_go.&_siteabbr._noteworthy_vars ;
     length outcome $ 8 ;
@@ -904,6 +906,48 @@ quit ;
 
 %mend demog_tier_one_point_five ;
 
+%macro fake_language ;
+  * If the site has not yet implemented person_languages, create a temp fake one so the program will run ;
+  %local fake_langs i ;
+  %let fake_langs = false ;
+  %if %symexist(_vdw_language) %then %do ;
+    %if %sysfunc(exist(&_vdw_language)) %then %do ;
+      %put Actual language implementation found--not faking one out. ;
+    %end ;
+    %else %do ;
+      %let fake_langs = true ;
+      proc sql ;
+        insert into results (description, qa_macro, detail_dset, result)
+        values ("Languages table not found--treating as not implemented."
+                , '%fake_langs', 'n/a', 'fail')
+        ;
+      quit ;
+    %end ;
+  %end ;
+  %else %do ;
+    %let fake_langs = true ;
+    proc sql ;
+      insert into results (description, qa_macro, detail_dset, result)
+      values ("_vdw_language var not defined--treating as not implemented."
+              , '%fake_langs', 'n/a', 'fail')
+      ;
+    quit ;
+  %end ;
+  %if &fake_langs = true %then %do ;
+    %global _vdw_language ;
+    %let _vdw_language = work.fake_langs ;
+    data &_vdw_language ;
+      mrn = 'santa' ;
+      language = 'elvish' ;
+      primary = 'sure, why not?' ;
+      use = 'you better believe it.' ;
+      msg = "This dset was created b/c the e/d/l QA program could not find an actual implementation." ;
+      output ;
+    run ;
+  %end ;
+%mend fake_language ;
+
+%fake_language ;
 %check_vars ;
 %enroll_tier_one ;
 %demog_tier_one ;
