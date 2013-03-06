@@ -138,14 +138,11 @@ quit ;
 %mend do_vars ;
 
 
-%macro do_freqs(nom, byvar = enr_end) ;
+%macro do_freqs(nom, byvar = year) ;
 
   %stack_datasets(inlib = raw, nom = &nom, outlib = work) ;
 
-  %if &byvar = enr_end %then %do ;
-    %let fmt = %str(format = mmddyy10.) ;
-  %end ;
-  %else %let fmt = ;
+  %let fmt = ;
 
   proc sql ;
     create table tots as
@@ -192,7 +189,7 @@ quit ;
 
   /*
     variables can take any of several values.
-    for any combos of site|var_name|enr_end where value = Y that dont occur in the dset, add them in with count and pct of 0
+    for any combos of site|var_name|year where value = Y that dont occur in the dset, add them in with count and pct of 0
   */
 
 %mend do_freqs ;
@@ -200,12 +197,12 @@ quit ;
 %macro misc_wrangling() ;
   proc sql ;
     create table col.raw_enrollment_counts as
-    select    site, enr_end
+    select    site, year
             , sum(total) as total_count label = "No. of enrollment records ending on this date." format = comma12.0
             , count(*) as num_recs
     from    col.enroll_freqs
     where var_name = 'outside_utilization'
-    group by site, enr_end
+    group by site, year
     ;
     create table col.raw_gender_counts as
     select site, gender, sum(total) as total_count, count(*) as num_recs
@@ -221,7 +218,7 @@ quit ;
 %macro regen() ;
   %do_results ;
   %do_vars ;
-  %do_freqs(nom = enroll_freqs, byvar = enr_end) ;
+  %do_freqs(nom = enroll_freqs, byvar = year) ;
   %do_freqs(nom = demog_freqs, byvar = gender) ;
 
   proc sql ;
@@ -239,10 +236,10 @@ quit ;
 
 %macro report() ;
   proc sort data = col.enroll_freqs out = gnu ;
-    by var_name value site enr_end ;
+    by var_name value site year ;
     * where var_name in ('outside_utilization', 'plan_hmo', 'drugcov') and value in ('Y') ;
     *  Enforcing a minimal number of records, just to keep out e.g., the year in which FALLON had 100% of their 29 (or however many) records with ins_medicare = y. ;
-    where enr_end between '01jan1990'd and "&sysdate"d AND value not in ('U', 'N') and total ge 1000 ;
+    where year between 1990 and %sysfunc(year("&sysdate"d)) AND value not in ('U', 'N') and total ge 1000 ;
   run ;
 
   data gnu enrollment_basis ;
@@ -252,7 +249,7 @@ quit ;
     if var_name = 'enrollment_basis' then output enrollment_basis ;
     else output gnu ;
     label
-      enr_end = "Period end"
+      year = "Period end"
       pct = "Percent of *records* (not people)"
       var_name = "Variable"
     ;
@@ -261,10 +258,9 @@ quit ;
   title2 "Enrollment Variables (data between 1990 and 2012 only)" ;
 
   proc sgplot data = gnu ;
-    series x = enr_end y = pct / group = site lineattrs = (thickness = .1 CM) ;
-    * loess x = enr_end y = pct / group = site lineattrs = (thickness = .1 CM) ;
+    series x = year y = pct / group = site lineattrs = (thickness = .1 CM) ;
+    * loess x = year y = pct / group = site lineattrs = (thickness = .1 CM) ;
     yaxis grid ;
-    format enr_end year4. ;
     by var_name value ;
   run ;
 
@@ -272,23 +268,23 @@ quit ;
 
   proc sgpanel data = enrollment_basis ;
     panelby value / columns = 2 rows = 2 novarname ;
-    loess x = enr_end y = pct / group = site smooth = .2 ;
-    format enr_end year4. value $eb. ;
-    * where enr_end between '01jan1990'd and "&sysdate"d ;
+    loess x = year y = pct / group = site smooth = .2 ;
+    format value $eb. ;
+    * where year between '01jan1990'd and "&sysdate"d ;
   run ;
 
   title3 "Raw record counts." ;
   proc sgpanel data = col.raw_enrollment_counts ;
     panelby site / columns = 2 rows = 2 uniscale = column novarname ;
-    loess x = enr_end y = total_count / smooth = .2 ;
-    format enr_end year4. site $s. ;
-    where site ne 'KPNC' and enr_end between '01jan1990'd and "&sysdate"d ;
+    loess x = year y = total_count / smooth = .2 ;
+    format site $s. ;
+    where site ne 'KPNC' and year between '01jan1990'd and "&sysdate"d ;
   run ;
   proc sgpanel data = col.raw_enrollment_counts ;
     panelby site / columns = 2 uniscale = column novarname ;
-    loess x = enr_end y = total_count / smooth = .2 ;
-    format enr_end year4. site $s. ;
-    where site eq 'KPNC' and enr_end between '01jan1990'd and "&sysdate"d ;
+    loess x = year y = total_count / smooth = .2 ;
+    format site $s. ;
+    where site eq 'KPNC' and year between '01jan1990'd and "&sysdate"d ;
   run ;
 %mend report ;
 

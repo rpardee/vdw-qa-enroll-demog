@@ -767,7 +767,7 @@ quit ;
     length
       year 4
       var_name $ 20
-      value $ 4
+      value $ 20
       count 8
       percent 8
     ;
@@ -857,7 +857,7 @@ quit ;
     length
       gender $ 1
       var_name $ 20
-      value $ 4
+      value $ 20
       count 8
       percent 8
     ;
