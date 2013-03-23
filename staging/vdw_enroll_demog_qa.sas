@@ -883,7 +883,7 @@ quit ;
 
   %do %until(&this_var = ) ;
     proc freq data = &_vdw_demographic order = formatted ;
-      tables &this_var * gender / missing format = msk. out = gnu ;
+      tables &this_var * gender / missing format = msk. out = gnu plots = none ;
       format &this_var ;
     run ;
     proc sql ;
@@ -960,6 +960,7 @@ data to_go.&_siteabbr._tier_one_results ;
 run ;
 
 ods html path   = "%sysfunc(pathname(to_go))" (URL=NONE)
+         gpath  = "%sysfunc(pathname(to_stay))"
          body   = "&_siteabbr._vdw_enroll_demog_qa.html"
          (title = "&_SiteName.: QA for Enroll/Demographics - Tier 1 & 1.5")
           ;
