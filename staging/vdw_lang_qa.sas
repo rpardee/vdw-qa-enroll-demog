@@ -46,31 +46,31 @@
 
   * bring in language table ;
   proc sort data = &inset out = lang_recs;
-    by mrn language use;
+    by mrn lang_iso lang_usage ;
   run;
 
   * local table containing circumspect language records;
   data to_stay.bad_lang;
     set lang_recs;
-    by mrn language use;
+    by mrn lang_iso lang_usage ;
 
-    if put(language, $lang.) = 'bad' then do ;
-      problem = "bad value in language" ;
+    if put(lang_iso, $lang.) = 'bad' then do ;
+      problem = "bad value in lang_iso" ;
       output to_stay.bad_lang ;
     end ;
 
-    if put(use, $use.) = 'bad' then do ;
-      problem = "bad value in use" ;
+    if put(lang_usage, $use.) = 'bad' then do ;
+      problem = "bad value in lang_usage" ;
       output to_stay.bad_lang ;
     end ;
 
-    if put(primary, $flg.) = 'bad' then do ;
-      problem = "bad value in primary" ;
+    if put(lang_primary, $flg.) = 'bad' then do ;
+      problem = "bad value in lang_primary" ;
       output to_stay.bad_lang ;
     end ;
 
-    if not first.use  or not last.use then do ;
-      problem = "dup rec in language" ;
+    if not first.lang_usage  or not last.lang_usage then do ;
+      problem = "dup rec in lang_iso" ;
       output to_stay.bad_lang ;
     end ;
 
@@ -78,11 +78,11 @@
 
   * get rid of dups, we already reported on them ;
   proc sort data = lang_recs out = lang_recs_nd nodupkey;
-    by mrn language use;
+    by mrn lang_iso lang_usage ;
 
   * mrns with multiple languages ;
   proc sort data = lang_recs out = lang_nd nodupkey;
-  	by mrn language;
+  	by mrn lang_iso;
   data mult_lang;
     set lang_nd;
     by mrn ;
@@ -107,12 +107,12 @@
     from
       (select count(*) as lr from lang_recs) a
       , (select count(distinct(mrn)) as subj from lang_recs ) a1
-      , (select count(distinct(mrn)) as subj_eng from lang_recs where language = 'eng') b
-      , (select count(distinct(mrn)) as subj_ne from lang_recs where language ne 'eng') b1
+      , (select count(distinct(mrn)) as subj_eng from lang_recs where lang_iso = 'eng') b
+      , (select count(distinct(mrn)) as subj_ne from lang_recs where lang_iso ne 'eng') b1
       , (select count(distinct(mrn)) as subj_mult_lang from mult_lang) c
-	  , (select count(distinct(mrn)) as subj_mult_use from mult_lang where use = 'B') d
+	  , (select count(distinct(mrn)) as subj_mult_use from mult_lang where lang_usage = 'B') d
 	  , (select max(lang_cnt) as xtra_lan from mult_lang) e
-	  , (select count(distinct(language)) as lang_count from lang_recs) f
+	  , (select count(distinct(lang_iso)) as lang_count from lang_recs) f
     ;
 
 	select lang_recs into :num_lang_recs from to_go.&_siteabbr._lang_stats ;

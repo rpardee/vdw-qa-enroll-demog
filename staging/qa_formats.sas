@@ -64,9 +64,9 @@ enroll  plan_indemnity          2
 enroll  plan_pos                2
 enroll  plan_ppo                2
 lang    mrn                     2
-lang    language                2   3
-lang    use                     2   1
-lang    primary                 2   1
+lang    lang_iso                2   3
+lang    lang_usage              2   1
+lang    lang_primary            2   1
 ;
 run ;
 
@@ -581,7 +581,7 @@ zul    Zulu
 zun    Zuni
 zxx    No linguistic content, Not applicable
 zza    Zaza, Dimili, Dimli, Kirdki, Kirmanjki, Zazaki
-;	
+;
 run ;
 
 * pjh19401 added $use format ;
