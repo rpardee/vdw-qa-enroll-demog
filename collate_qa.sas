@@ -184,13 +184,19 @@ quit ;
       when ('%lang_tier_one', '%fake_langs') table = "Language" ;
       otherwise table = 'All' ;
     end ;
+    select(description) ;
+      when ('Valid values: language') description = 'Valid values: lang_iso' ;
+      when ('Valid values: primary')  description = 'Valid values: lang_primary' ;
+      when ('Valid values: use')      description = 'Valid values: lang_usage' ;
+      otherwise ; * <-- do nothing ;
+    end ;
     label
       description = "QA Check"
       table = "VDW Table"
     ;
   run ;
 
-  proc sql ;
+  proc sql noexec ;
     * These guys got bit by a bug when running on a unix system--their fails were bogus. ;
     update tier_one_results
     set result = 'pass'
@@ -198,11 +204,12 @@ quit ;
     ;
   quit ;
 
-  data col.norm_tier_one_results ;
-    set tier_one_results ;
+  proc sort data = tier_one_results out = col.norm_tier_one_results ;
+    by qa_macro table description ;
   run ;
 
-  proc transpose data = tier_one_results out = col.tier_one_results(drop = _:) ;
+
+  proc transpose data = col.norm_tier_one_results out = col.tier_one_results(drop = _:) ;
     var result ;
     by qa_macro table description ;
     id site ;
@@ -384,7 +391,7 @@ quit ;
 
   title3 "Trends over time" ;
   proc sgpanel data = gnu ;
-    panelby site / novarname uniscale = column ;
+    panelby site / novarname uniscale = column columns = 3 rows = 3 ;
     series x = year y = pct / group = value lineattrs = (/* thickness = .1 CM */ pattern = solid) ;
     colaxis grid ;
     by vcat var_name ;
@@ -471,7 +478,7 @@ quit ;
 
 %mend report_demog ;
 
-* %regen ;
+%regen ;
 
 options orientation = landscape ;
 ods graphics / height = 6in width = 10in ;

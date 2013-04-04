@@ -47,6 +47,10 @@ options
 * Please edit this so it points to the location where you unzipped the files/folders. ;
 %let root = //groups/data/CTRHS/Crn/voc/enrollment/programs/ghc_qa ;
 
+* Some sites are having trouble w/the calls to SGPlot--if you want to try to get the graphs please set this var to false. ;
+* Otherwise, please leave this be. ;
+%let skip_graphs = true ;
+
 * ======================== end edit section ======================== ;
 * ======================== end edit section ======================== ;
 * ======================== end edit section ======================== ;
@@ -817,7 +821,7 @@ quit ;
       format &this_var ;
     run ;
     * EXPERIMENTAL!   ;
-    %if &sysver ge 9.1 and %sysprod(graph) = 1 %then %do ;
+    %if &sysver ge 9.1 and %sysprod(graph) = 1 and &skip_graphs = false %then %do ;
 
       * Put this line before opening any ODS destinations. ;
       options orientation = landscape ;
