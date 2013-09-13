@@ -21,49 +21,49 @@
 data expected_vars ;
   length name $ 32 ;
   input
-    @1   dset      $
-    @9   name  $char20.
-    @33   type
-    @37   recommended_length
+    @1    dset                $
+    @9    name                $char20.
+    @33   type                1.0
+    @37   recommended_length  1.0
   ;
   infile datalines missover ;
 datalines ;
-demog   gender                  2
+demog   gender                  2   .
 demog   birth_date              1   4
-demog   hispanic                2
-demog   mrn                     2
-demog   needs_interpreter       2
-demog   primary_language        2
-demog   race1                   2
-demog   race2                   2
-demog   race3                   2
-demog   race4                   2
-demog   race5                   2
-enroll  mrn                     2
+demog   hispanic                2   .
+demog   mrn                     2   .
+demog   needs_interpreter       2   .
+demog   primary_language        2   .
+demog   race1                   2   .
+demog   race2                   2   .
+demog   race3                   2   .
+demog   race4                   2   .
+demog   race5                   2   .
+enroll  mrn                     2   .
 enroll  enr_end                 1   4
 enroll  enr_start               1   4
-enroll  enrollment_basis        2
-enroll  drugcov                 2
-enroll  ins_commercial          2
-enroll  ins_highdeductible      2
-enroll  ins_medicaid            2
-enroll  ins_medicare            2
-enroll  ins_medicare_a          2
-enroll  ins_medicare_b          2
-enroll  ins_medicare_c          2
-enroll  ins_medicare_d          2
-enroll  ins_other               2
-enroll  ins_privatepay          2
-enroll  ins_selffunded          2
-enroll  ins_statesubsidized     2
-enroll  outside_utilization     2
-enroll  pcc                     2
-enroll  pcp                     2
-enroll  plan_hmo                2
-enroll  plan_indemnity          2
-enroll  plan_pos                2
-enroll  plan_ppo                2
-lang    mrn                     2
+enroll  enrollment_basis        2   .
+enroll  drugcov                 2   .
+enroll  ins_commercial          2   .
+enroll  ins_highdeductible      2   .
+enroll  ins_medicaid            2   .
+enroll  ins_medicare            2   .
+enroll  ins_medicare_a          2   .
+enroll  ins_medicare_b          2   .
+enroll  ins_medicare_c          2   .
+enroll  ins_medicare_d          2   .
+enroll  ins_other               2   .
+enroll  ins_privatepay          2   .
+enroll  ins_selffunded          2   .
+enroll  ins_statesubsidized     2   .
+enroll  outside_utilization     2   .
+enroll  pcc                     2   .
+enroll  pcp                     2   .
+enroll  plan_hmo                2   .
+enroll  plan_indemnity          2   .
+enroll  plan_pos                2   .
+enroll  plan_ppo                2   .
+lang    mrn                     2   .
 lang    lang_iso                2   3
 lang    lang_usage              2   1
 lang    lang_primary            2   1

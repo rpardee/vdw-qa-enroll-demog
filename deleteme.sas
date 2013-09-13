@@ -21,13 +21,14 @@ options
   nosqlremerge
 ;
 
-libname raw "\\groups\data\CTRHS\Crn\voc\enrollment\programs\qa_results\raw" ;
-libname col "//ghrisas/SASUser/pardre1" ;
+libname s "\\groups\data\CTRHS\Crn\voc\enrollment\programs\qa_results" ;
+%removedset(dset = s.t1_check_tolerances) ;
 
-proc sql ;
-  select distinct var_name
-  from raw.kpnw_enroll_freqs
-  where var_name not in (select var_name from raw.ghc_enroll_freqs)
-  order by 1
-  ;
-quit ;
+%macro ap(dset) ;
+  proc append base = s.t1_check_tolerances data = &dset ;
+  run ;
+%mend ap ;
+
+%ap(s.erbr_checks) ;
+%ap(s.demog_checks) ;
+%ap(s.lang_checks) ;

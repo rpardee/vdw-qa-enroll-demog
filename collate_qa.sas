@@ -35,13 +35,16 @@ libname col "\\groups\data\CTRHS\Crn\voc\enrollment\programs\qa_results" ;
 
 proc format cntlout = sites ;
   value $s
+    /* 'HPRF' = 'HealthPartners' */
+    /* 'LCF'  = 'Lovelace' */
+    /* "FAL"  = "Fallon Community Health Plan" */
+    /* "LHS"  = "Lovelace Health Systems" */
     'HPHC' = 'Harvard'
-    'HPRF' = 'HealthPartners'
+    'HPI'  = 'HealthPartners'
     'MCRF' = 'Marshfield'
     'SWH'  = 'Scott & White'
     'HFHS' = 'Henry Ford'
     'GHS'  = 'Geisinger'
-/*     'LCF'  = 'Lovelace' */
     'GHC'  = 'Group Health'
     'PAMF' = 'Palo Alto'
     'EIRH' = 'Essentia'
@@ -50,9 +53,8 @@ proc format cntlout = sites ;
     'KPGA' = 'KP Georgia'
     "KPNC" = "KP Northern California"
     "KPSC" = "KP Southern California"
-    "KPH"  = "KP Hawai'i"
-    "FAL"  = "Fallon Community Health Plan"
-    "LHS"  = "Lovelace Health Systems"
+    "KPH"  = "KP Hawaii"
+    "FA"  = "Fallon Community HP"
     "KPMA" = "KP Mid-Atlantic"
   ;
   value $race
@@ -76,6 +78,25 @@ proc format cntlout = sites ;
     'F' = 'Female'
     'O' = 'Other Gender'
     'U' = 'Unknown Gender'
+  ;
+  value $ta
+    '00to', '00to04'    = '3'
+    '05to', '05to09'    = '8'
+    '10to', '10to14'    = '13'
+    '15to', '15to19'    = '18'
+    '20to', '20to29'    = '28'
+    '30to', '30to39'    = '38'
+    '40to', '40to49'    = '48'
+    '50to', '50to59'    = '58'
+    '60to', '60to64'    = '62'
+    '65to', '65to69'    = '68'
+    '70to', '70to74'    = '72'
+    'ge_7', 'ge_75'     = '76'
+  ;
+  value shrtage
+    low -< 19 = '0 to 19'
+    20  -< 64 = '20 to 64'
+    65 - high = '65+'
   ;
   value $v
     '00to', '00to04'    = '< 5'
@@ -202,6 +223,36 @@ quit ;
     set result = 'pass'
     where description = 'Are all vars in the spec in the dataset & of proper type?' and site in ('KPNC', 'KPMA')
     ;
+
+    reset exec noprint ;
+
+    * If lang table not defined, this should be one failure--take out the ones for the individual vars. ;
+    select site
+    into :nolang separated by '", "'
+    from tier_one_results
+    where description = '_vdw_language var not defined--treating as not implemented.' and result = 'fail'
+    ;
+
+    %if &sqlobs > 0 %then %do ;
+
+      update tier_one_results
+      set result = 'n/a'
+      where description in ('Valid values: lang_iso', 'Valid values: lang_primary', 'Valid values: lang_usage') AND
+      site in ("&nolang")
+      ;
+
+    %end ;
+    create table gnu as
+    select t.*
+        , warn_lim label = "Warn Threshold"
+        , fail_lim label = "Fail Threshold"
+    from tier_one_results as t LEFT JOIN
+        col.t1_check_tolerances as c
+    on    t.description = c.description
+    ;
+
+    create table tier_one_results as select * from gnu ;
+
   quit ;
 
   proc sort data = tier_one_results out = col.norm_tier_one_results ;
@@ -211,7 +262,7 @@ quit ;
 
   proc transpose data = col.norm_tier_one_results out = col.tier_one_results(drop = _:) ;
     var result ;
-    by qa_macro table description ;
+    by qa_macro table description warn_lim fail_lim ;
     id site ;
     idlabel sitename ;
   run ;
@@ -323,6 +374,12 @@ quit ;
     delete from col.demog_freqs
     where var_name in ('primary_language', 'race1', 'race2', 'race3', 'race4', 'race5') and value = 'Y'
     ;
+    * There is non-negligible enrollment data pre-2004 (N ~= 5k) but it is dwarfed and weird compared to ;
+    * their post-2004 stuff.  Deleting for now--TODO: put an issue in the tracker for these guys to be explained or removed ;
+    reset exec ;
+    delete from col.enroll_freqs
+    where site = 'KPMA' and year < 2004
+    ;
   quit ;
 
   %misc_wrangling ;
@@ -337,7 +394,7 @@ quit ;
     where year between 1990 and (%sysfunc(year("&sysdate"d)) -1) /* AND value not in ('.', ' ') */ and total ge 1000 ;
   run ;
 
-  data gnu ;
+  data gnu agegroups ;
     length site $ 20 ;
     set gnu ;
     site = put(site, $s.) ;
@@ -349,14 +406,28 @@ quit ;
       else if value = 'N' then value = 'Probably Not' ;
     end ;
     if var_name = 'enrollment_basis' and value =: 'Non-' then value = 'Non-member patient' ;
+    if var_name = 'agegroup' then output agegroups ;
+    else output gnu ;
     label
-      vcat = "Category"
-      year = "Year"
-      pct = "Percent of enrollees"
+      vcat     = "Category"
+      year     = "Year"
+      pct      = "Percent of enrollees"
       var_name = "Variable"
     ;
     format value $v. ;
   run ;
+
+  proc sql ;
+    create table bubba as
+    select site, year, put(input(put(value, $ta.), best.), shrtage.) as value, total, pct
+    from agegroups
+    ;
+    create table agegroups as
+    select site, year, value, sum(total) as total, sum(pct) as pct
+    from bubba
+    group by site, year, value
+    ;
+  quit ;
 
   proc sort data = gnu ;
     by vcat var_name value site year ;
@@ -367,7 +438,7 @@ quit ;
     length site_name $ 20 ;
     set col.raw_enrollment_counts ;
     if site in ('KPNC', 'KPSC') then do ;
-      high_count = total_count ;
+      high_count = total_count - 100 ;
       total_count = . ;
     end ;
     site_name = put(site, $s.) ;
@@ -377,23 +448,46 @@ quit ;
     format high_count comma12.0 ;
   run ;
 
+  proc sort data = ax ;
+    by site_name year ;
+  run ;
+
   * proc sql ;
   *   insert into ax (year, site, high_count) values (2010, 'NSCH', 3600000) ;
   * quit ;
 
+  %local th ;
+  %let th = .06 CM ;
+
   title3 "Raw record counts." ;
   proc sgplot data = ax ;
-    loess x = year y = total_count / group = site_name lineattrs = (/* thickness = .1 CM */ pattern = solid) ;
-    * loess x = year y = high_count  / group = site_name lineattrs = (thickness = .1 CM pattern = solid) y2axis ;
+    loess x = year y = total_count / group = site_name /* lineattrs = (thickness = &th pattern = solid) */ ;
+    * series x = year y = high_count  / group = site_name lineattrs = (/* thickness = &th */ pattern = solid) MARKERATTRS = (size = .3cm) y2axis ;
+    loess x = year y = high_count  / group = site_name  y2axis ;
     xaxis grid ;
+    yaxis grid ;
     where year between 1990 and (year("&sysdate9."d) -1) ;
   run ;
 
+  data s.ax ;
+    set ax ;
+  run ;
+
+  title3 "Enrollee Ages (as of 1-January of each Year)" ;
+  proc sgpanel data = agegroups ;
+    panelby site / novarname uniscale = column columns = 4 rows = 4 ;
+    series x = year y = pct / group = value lineattrs = (thickness = &th pattern = solid) ;
+    * where year between 1990 and (year("&sysdate9."d) -1) ;
+    colaxis grid ;
+    rowaxis grid ;
+    format pct percent8.0 ;
+  run ;
   title3 "Trends over time" ;
   proc sgpanel data = gnu ;
-    panelby site / novarname uniscale = column columns = 3 rows = 3 ;
-    series x = year y = pct / group = value lineattrs = (/* thickness = .1 CM */ pattern = solid) ;
+    panelby site / novarname uniscale = column columns = 4 rows = 4 ;
+    series x = year y = pct / group = value lineattrs = (thickness = &th pattern = solid) ;
     colaxis grid ;
+    rowaxis grid ;
     by vcat var_name ;
     format var_name $vars. pct percent8.0 ;
   run ;
@@ -521,14 +615,14 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf" device = sasemf style = magnify
     reset nonumber ;
 
     title2 "Tier One--checks that tripped any failures or warnings" ;
-    select description
+    select description, warn_lim, fail_lim
           , sum(case when result = 'fail' then 1 else 0 end) as num_fails label = "Fails"
           , sum(case when result in ('warn', 'warning') then 1 else 0 end) as num_warns label = "Warnings"
           , sum(case when result = 'pass' then 1 else 0 end) as num_passes label = "Passes"
     from col.norm_tier_one_results
     where description in (select description from col.norm_tier_one_results where result in ('fail', 'warn', 'warning'))
-    group by description
-    order by 4
+    group by description, warn_lim, fail_lim
+    order by 6
     ;
   quit ;
 
@@ -564,8 +658,12 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf" device = sasemf style = magnify
     define label / width = 100 ;
   run;
 
- ods _all_ close ;
 
+
+
+
+
+ ods _all_ close ;
 
 proc format ;
   value tob
@@ -578,3 +676,5 @@ proc format ;
     7 = "conflicting"
   ;
 quit ;
+"somatheing"
+
