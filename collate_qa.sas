@@ -452,6 +452,10 @@ quit ;
     by site_name year ;
   run ;
 
+  data col.drop_me ;
+    set ax ;
+    where year between 1990 and (year("&sysdate9."d) -1) ;
+  run ;
   * proc sql ;
   *   insert into ax (year, site, high_count) values (2010, 'NSCH', 3600000) ;
   * quit ;

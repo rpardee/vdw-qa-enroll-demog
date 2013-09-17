@@ -70,7 +70,7 @@ proc sql ;
   create table results
    ( description  char(60) label = "Description"
    , qa_macro     char(30) label = "Name of the macro that does this check"
-   , detail_dset  char(30) label = "Look for further details in this dataset"
+   , detail_dset  char(40) label = "Look for further details in this dataset"
    , num_bad      numeric  label = "For record-based checks, how many records offend the spec?" format = comma14.0
    , percent_bad  numeric  label = "For record-based checks, bad records are what % of total?"  format = 8.2
    , result       char(8)  label = "Result"
@@ -88,7 +88,7 @@ quit ;
   run ;
 
   data observed_vars ;
-* pjh19401    set evars (in = e) dvars ;
+  * pjh19401    set evars (in = e) dvars ;
     set
       lvars (in = l)
       evars (in = e)
@@ -181,6 +181,7 @@ quit ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('High-deduct w/out commercial or private pay?', 'high-deduct w/out commercial or private pay', 1, 2) ;
 
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Outside ute agrees with drugcov?', 'no drug coverage, but outside ute flag not set', 0, 0) ;
+    insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Medicare Part D agrees with drugcov?', 'ins_medicare_d = Y, but drugcov = N', 0, 0) ;
 
   quit ;
 
@@ -277,6 +278,10 @@ quit ;
 
     if drugcov = 'N' and outside_utilization = 'N' then do ;
       problem = "no drug coverage, but outside ute flag not set" ;
+      output to_stay.bad_enroll ;
+    end ;
+    if drugcov = 'N' and ins_medicare_d = 'Y' then do ;
+      problem = "ins_medicare_d = Y, but drugcov = N" ;
       output to_stay.bad_enroll ;
     end ;
     if alldone then do ;
@@ -753,8 +758,8 @@ quit ;
           plan_indemnity      = "Has Indemnity coverage?"
           plan_pos            = "Has Point-of-Service coverage?"
           plan_ppo            = "Has Preferred-Provider-Organization coverage?"
-          pcp_probably_valid  = "Has a valid Primary Care Physician assignment? (EXPERIMENTAL)"
-          pcc_probably_valid  = "Has a valid Primary Care Clinic assignment? (EXPERIMENTAL)"
+          pcp_probably_valid  = "Has a valid Primary Care Physician assignment?"
+          pcc_probably_valid  = "Has a valid Primary Care Clinic assignment?"
         ;
     quit ;
 
@@ -915,7 +920,7 @@ quit ;
   %local fake_langs i ;
   %let fake_langs = false ;
   %if %symexist(_vdw_language) %then %do ;
-    %if %sysfunc(exist(&_vdw_language)) %then %do ;
+    %if (%sysfunc(exist(&_vdw_language)) OR %sysfunc(exist(&_vdw_language, VIEW))) %then %do ;
       %put Actual language implementation found--not faking one out. ;
     %end ;
     %else %do ;
