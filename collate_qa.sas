@@ -438,7 +438,7 @@ quit ;
     length site_name $ 20 ;
     set col.raw_enrollment_counts ;
     if site in ('KPNC', 'KPSC') then do ;
-      high_count = total_count - 100 ;
+      high_count = total_count ;
       total_count = . ;
     end ;
     site_name = put(site, $s.) ;
@@ -462,19 +462,32 @@ quit ;
 
   %local th ;
   %let th = .06 CM ;
-
+  %let B = .25 ;
   title3 "Raw record counts." ;
   proc sgplot data = ax ;
-    loess x = year y = total_count / group = site_name /* lineattrs = (thickness = &th pattern = solid) */ ;
+    loess x = year y = total_count / group = site_name smooth = &B /* lineattrs = (thickness = &th pattern = solid) */ ;
     * series x = year y = high_count  / group = site_name lineattrs = (/* thickness = &th */ pattern = solid) MARKERATTRS = (size = .3cm) y2axis ;
-    loess x = year y = high_count  / group = site_name  y2axis ;
+    loess x = year y = high_count  / group = site_name smooth = &B  y2axis ;
     xaxis grid ;
     yaxis grid ;
     where year between 1990 and (year("&sysdate9."d) -1) ;
   run ;
 
-  data s.ax ;
-    set ax ;
+  title3 "Person/Years Per Organization" ;
+  proc sql ;
+    create table tpy as
+    select site_name label = "HMORN Site"
+        , sum(coalesce(total_count, high_count)) as person_years format = comma12.0 label = "Total no. of person/years"
+    from ax
+    group by site_name
+    ;
+    * select * from tpy ;
+  quit ;
+
+  proc print data = tpy label ;
+    id site_name ;
+    sum person_years ;
+    format person_years comma12.0 ;
   run ;
 
   title3 "Enrollee Ages (as of 1-January of each Year)" ;
@@ -613,10 +626,13 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf" device = sasemf style = magnify
     order by label
     ;
 
+    ods rtf exclude all ;
+
     title2 "Tier One (objective) checks--overall" ;
     select * from col.tier_one_results (drop = qa_macro) ;
 
     reset nonumber ;
+    ods rtf ;
 
     title2 "Tier One--checks that tripped any failures or warnings" ;
     select description, warn_lim, fail_lim

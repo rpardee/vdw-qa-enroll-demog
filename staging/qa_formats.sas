@@ -8,7 +8,7 @@
 *
 * Creates formats needed for the E/D QA program.
 *********************************************/
-* 				UPDATE LOG 					*/
+*         UPDATE LOG          */
 *********************************************/
 * Paul Hitz
 * Essentia Institute of Rural Health
@@ -16,6 +16,8 @@
 * pjh19401 (search string)
 * Added values for the Languages table.
 ********************************************* ;
+
+* %let lowest_count = 9 ;
 
 * pjh19401 added lang datalines ;
 data expected_vars ;
@@ -609,7 +611,7 @@ proc format cntlout = fmt ;
     "AS" = "Asian"
     "BA" = "Black or African American"
     "WH" = "White"
-    "MU" = "More than one race, particular races unknown or not reported"
+    "MU" = "More than one race, particular races unknown or not reported                    "
     "UN" = "Unknown or Not Reported"
     other = 'bad'
   ;
@@ -625,17 +627,19 @@ proc format cntlout = fmt ;
     other = [comma12.0]
   ;
   value $use
-  	"S" = 'Spoken'
-	"W" = 'Written'
-	"B" = 'Both'
-	"U" = 'Unknown'
-	other = 'bad'
+    "S"     = 'Spoken'
+    "W"     = 'Written'
+    "B"     = 'Both'
+    "U"     = 'Unknown'
+    other   = 'bad'
   ;
 quit ;
 
 proc sql ;
 
   create table langfmt like fmt ;
+
+  describe table langfmt ;
 
   insert into langfmt (fmtname, start, end, label)
   select '$LANG', abbrev, abbrev, description
