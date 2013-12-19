@@ -437,13 +437,16 @@ quit ;
   data ax ;
     length site_name $ 20 ;
     set col.raw_enrollment_counts ;
+    total_count = total_count / 1000 ;
     if site in ('KPNC', 'KPSC') then do ;
       high_count = total_count ;
       total_count = . ;
     end ;
     site_name = put(site, $s.) ;
     label
-      high_count = "No. of enrollees (larger sites)"
+      total_count = "No. Enrollees (in Thousands)"
+      high_count = "Larger Sites"
+      site_name = "Site"
     ;
     format high_count comma12.0 ;
   run ;
@@ -589,7 +592,7 @@ quit ;
 
 %mend report_demog ;
 
-%regen ;
+* %regen ;
 
 options orientation = landscape ;
 ods graphics / height = 6in width = 10in ;
