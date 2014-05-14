@@ -42,7 +42,7 @@ options
 ;
 
 * Please edit this to point to your local standard vars file. ;
-%include "//groups/data/CTRHS/Crn/S D R C/VDW/Macros/StdVars.sas" ;
+%include "//ghrisas/Warehouse/Sasdata/CRN_VDW/lib/StdVars.sas" ;
 
 * Please edit this so it points to the location where you unzipped the files/folders. ;
 %let root = //groups/data/CTRHS/Crn/voc/enrollment/programs/ghc_qa ;
@@ -587,13 +587,15 @@ quit ;
     value $dc
       'Y'   = 'A'
       'N'   = 'B'
-      other = 'C'
+      'E'   = 'C'
+      other = 'D'
     ;
     ** For translating back to permissible values of DrugCov ;
     value $cd
       'A' = 'Y'
       'B' = 'N'
-      'C' = 'U'
+      'C' = 'E'
+      'D' = 'U'
     ;
     value $Race
       'WH' = 'White'
@@ -602,6 +604,7 @@ quit ;
       'AS' = 'Asian'
       'HP' = 'Pac Isl'
       'MU' = 'Multiple'
+      'OT' = 'Other'
       Other = 'Unknown'
     ;
     value $eb
@@ -835,6 +838,8 @@ quit ;
       proc sgplot data = gnu ;
         loess x = year y = count / group = &this_var lineattrs = (thickness = .1 CM) ;
         format count comma10.0 ;
+        xaxis grid ;
+        yaxis grid ;
       run ;
     %end ;
 
@@ -895,6 +900,22 @@ quit ;
       tables &this_var * gender / missing format = msk. out = gnu plots = none ;
       format &this_var ;
     run ;
+
+    * EXPERIMENTAL!   ;
+    %if &sysver ge 9.1 and %sysprod(graph) = 1 and &skip_graphs = false %then %do ;
+
+      * Put this line before opening any ODS destinations. ;
+      options orientation = landscape ;
+      ods graphics / height = 6in width = 10in ;
+
+      proc sgplot data = gnu ;
+        vbar &this_var / response = count group = gender stat = sum ;
+        format count comma10.0 ;
+        xaxis grid ;
+        yaxis grid ;
+      run ;
+    %end ;
+
     proc sql ;
       insert into &outset (gender, var_name, value, count, percent)
       select gender, "&this_var", &this_var, count, percent

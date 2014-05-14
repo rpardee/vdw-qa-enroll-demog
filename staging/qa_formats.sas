@@ -596,6 +596,7 @@ proc format cntlout = fmt ;
     "Y"   = "yes"
     "N"   = "no"
     "U"   = "unknown"
+    "E"   = "external"
     other = "bad"
   ;
   value $eb
@@ -612,6 +613,7 @@ proc format cntlout = fmt ;
     "BA" = "Black or African American"
     "WH" = "White"
     "MU" = "More than one race, particular races unknown or not reported                    "
+    "OT" = "Other"
     "UN" = "Unknown or Not Reported"
     other = 'bad'
   ;
