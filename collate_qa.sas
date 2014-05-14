@@ -64,6 +64,7 @@ proc format cntlout = sites ;
     'BA' = 'Black or African American'
     'WH' = 'White'
     'MU' = 'More than one race, particular races unknown or not reported'
+    'OT' = 'Other'
     'UN' = 'Unknown or Not Reported'
     Other = 'bad'
   ;
@@ -126,6 +127,7 @@ proc format cntlout = sites ;
     'Y'                 = 'Yes'
     'N'                 = 'No'
     'U'                 = 'Unknown'
+    'E'                 = 'External'
   ;
   value $vars
       'agegroup'            = 'Age of Enrollees'
