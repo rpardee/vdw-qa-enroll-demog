@@ -594,7 +594,7 @@ quit ;
 
 %mend report_demog ;
 
-* %regen ;
+%regen ;
 
 options orientation = landscape ;
 ods graphics / height = 6in width = 10in ;

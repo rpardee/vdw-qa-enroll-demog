@@ -50,6 +50,7 @@ options
 * Some sites are having trouble w/the calls to SGPlot--if you want to try to get the graphs please set this var to false. ;
 * Otherwise, please leave this be. ;
 %let skip_graphs = true ;
+%let skip_graphs = false ;
 
 * ======================== end edit section ======================== ;
 * ======================== end edit section ======================== ;
@@ -466,11 +467,6 @@ quit ;
 
     if put(gender, $gend.) = 'bad' then do ;
       problem = "bad value in gender" ;
-      output to_stay.bad_demog ;
-    end ;
-
-    if put(primary_language, $lang.) = 'bad' then do ;
-      problem = "bad value in primary_language" ;
       output to_stay.bad_demog ;
     end ;
 

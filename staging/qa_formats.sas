@@ -35,7 +35,6 @@ demog   birth_date              1   4
 demog   hispanic                2   .
 demog   mrn                     2   .
 demog   needs_interpreter       2   .
-demog   primary_language        2   .
 demog   race1                   2   .
 demog   race2                   2   .
 demog   race3                   2   .
