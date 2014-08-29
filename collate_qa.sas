@@ -470,9 +470,9 @@ quit ;
   %let B = .25 ;
   title3 "Raw record counts." ;
   proc sgplot data = ax ;
-    loess x = year y = total_count / group = site_name smooth = &B /* lineattrs = (thickness = &th pattern = solid) */ ;
+    loess x = year y = total_count / group = site_name smooth = &B lineattrs = (thickness = &th pattern = solid) ;
     * series x = year y = high_count  / group = site_name lineattrs = (/* thickness = &th */ pattern = solid) MARKERATTRS = (size = .3cm) y2axis ;
-    loess x = year y = high_count  / group = site_name smooth = &B  y2axis ;
+    loess x = year y = high_count  / group = site_name smooth = &B lineattrs = (thickness = &th pattern = solid) y2axis ;
     xaxis grid ;
     yaxis grid ;
     where year between 1990 and (year("&sysdate9."d) -1) ;
@@ -615,12 +615,20 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf" device = sasemf style = magnify
     * describe table dictionary.tables ;
     create table submitting_sites as
     select put(prxchange("s/(.*)_TIER_ONE_RESULTS\s*$/$1/i", -1, memname), $s.) as site label = "Site"
-        , datepart(crdate) as date_submitted format = mmddyy10. label = "Submission Date"
+        , datepart(crdate) as date_submitted format = mmddyy10. label = "QA Submission Date"
     from dictionary.tables
     where libname = 'RAW' and memname like '%_TIER_ONE_RESULTS'
     ;
-    title2 "Sites submitting QA Results" ;
-    select * from submitting_sites ;
+  quit ;
+
+  title2 "Sites submitting QA Results" ;
+  proc sgplot data = submitting_sites ;
+    dot site / response = date_submitted ;
+    xaxis grid ;
+  run ;
+
+  proc sql number ;
+    * select * from submitting_sites ;
     title2 "Sites that have not yet submitted QA Results" ;
 
     * select * from sites ;
@@ -683,23 +691,5 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf" device = sasemf style = magnify
     define label / width = 100 ;
   run;
 
-
-
-
-
-
  ods _all_ close ;
-
-proc format ;
-  value tob
-    1 = "current user"
-    2 = "never"
-    3 = "quit/former user"
-    4 = "passive"
-    5 = "environmental exposure"
-    6 = "not asked"
-    7 = "conflicting"
-  ;
-quit ;
-"somatheing"
 
