@@ -43,7 +43,7 @@ proc format cntlout = sites ;
     'HPI'  = 'HealthPartners'
     'MCRF' = 'Marshfield'
     'SWH'  = 'Scott & White'
-    'HFHS' = 'Henry Ford'
+    'HFHS' = 'Henry Ford*'
     'GHS'  = 'Geisinger'
     'GHC'  = 'Group Health'
     'PAMF' = 'Palo Alto'
@@ -193,6 +193,8 @@ quit ;
   %stack_datasets(inlib = raw, nom = lang_stats, outlib = col) ;
 
   %stack_datasets(inlib = raw, nom = tier_one_results, outlib = work) ;
+
+  %stack_datasets(inlib = raw, nom = flagcorr, outlib = col) ;
 
   proc sort data = tier_one_results(drop = detail_dset num_bad) ;
     by qa_macro description site ;
@@ -389,11 +391,14 @@ quit ;
 %mend regen ;
 
 %macro report() ;
+  %local start_year end_year ;
+  %let start_year = 1990 ;
+  %let end_year = %trim(%eval(%sysfunc(year("&sysdate"d)) -1)) ;
   proc sort data = col.enroll_freqs out = gnu ;
     by var_name value site year ;
     *  Enforcing a minimal number of records, just to keep out e.g., the year in which FALLON had 100% of their 29 (or however many) records with ins_medicare = y. ;
     * where year between 1990 and (%sysfunc(year("&sysdate"d)) -1) AND value not in ('U', 'N') and total ge 1000 ;
-    where year between 1990 and (%sysfunc(year("&sysdate"d)) -1) /* AND value not in ('.', ' ') */ and total ge 1000 ;
+    where year between &start_year and &end_year /* AND value not in ('.', ' ') */ and total ge 1000 ;
   run ;
 
   data gnu agegroups ;
@@ -435,7 +440,6 @@ quit ;
     by vcat var_name value site year ;
   run ;
 
-  title2 "Enrollment Variables (data between 1990 and 2012 only)" ;
   data ax ;
     length site_name $ 20 ;
     set col.raw_enrollment_counts ;
@@ -459,26 +463,32 @@ quit ;
 
   data col.drop_me ;
     set ax ;
-    where year between 1990 and (year("&sysdate9."d) -1) ;
+    * where year between &start_year and &end_year ;
   run ;
   * proc sql ;
   *   insert into ax (year, site, high_count) values (2010, 'NSCH', 3600000) ;
   * quit ;
 
-  %local th ;
-  %let th = .06 CM ;
+  %local th B sz ;
+  %let th = .03 CM ;
   %let B = .25 ;
-  title3 "Raw record counts." ;
+  %let sz = .1 CM ;
+  ods graphics / imagename = "enroll_counts" ;
+  title2 "Raw record counts (&start_year to &end_year only)" ;
   proc sgplot data = ax ;
-    loess x = year y = total_count / group = site_name smooth = &B lineattrs = (thickness = &th pattern = solid) ;
-    * series x = year y = high_count  / group = site_name lineattrs = (/* thickness = &th */ pattern = solid) MARKERATTRS = (size = .3cm) y2axis ;
-    loess x = year y = high_count  / group = site_name smooth = &B lineattrs = (thickness = &th pattern = solid) y2axis ;
-    xaxis grid ;
+    * loess x = year y = total_count / group = site_name smooth = &B lineattrs = (thickness = &th pattern = solid) ;
+    * loess x = year y = high_count  / group = site_name smooth = &B lineattrs = (thickness = &th pattern = solid) y2axis ;
+
+    series x = year y = total_count / group = site_name lineattrs = (thickness = &th pattern = solid) markers MARKERATTRS = (size = &sz) ;
+    series x = year y = high_count  / group = site_name lineattrs = (thickness = &th pattern = solid) markers MARKERATTRS = (size = &sz) y2axis ;
+    xaxis grid display = (nolabel) ;
     yaxis grid ;
-    where year between 1990 and (year("&sysdate9."d) -1) ;
+    * keylegend / location = inside position = topleft noborder ;
+    keylegend / noborder across = 4 ;
+    where year between &start_year and &end_year ;
   run ;
 
-  title3 "Person/Years Per Organization" ;
+  title2 "Person/Years Per Organization" ;
   proc sql ;
     create table tpy as
     select site_name label = "HMORN Site"
@@ -495,18 +505,21 @@ quit ;
     format person_years comma12.0 ;
   run ;
 
+  title2 "Enrollment Variables (data between &start_year and &end_year only)" ;
   title3 "Enrollee Ages (as of 1-January of each Year)" ;
+  ods graphics / imagename = "age_groups" ;
   proc sgpanel data = agegroups ;
-    panelby site / novarname uniscale = column columns = 4 rows = 4 ;
+    panelby site / novarname uniscale = column columns = 5 rows = 4 ;
     series x = year y = pct / group = value lineattrs = (thickness = &th pattern = solid) ;
-    * where year between 1990 and (year("&sysdate9."d) -1) ;
+    * where year between &start_year and &end_year ;
     colaxis grid ;
     rowaxis grid ;
     format pct percent8.0 ;
   run ;
+  ods graphics / imagename = "enroll_vars" ;
   title3 "Trends over time" ;
   proc sgpanel data = gnu ;
-    panelby site / novarname uniscale = column columns = 4 rows = 4 ;
+    panelby site / novarname uniscale = column columns = 5 rows = 4 ;
     series x = year y = pct / group = value lineattrs = (thickness = &th pattern = solid) ;
     colaxis grid ;
     rowaxis grid ;
@@ -547,7 +560,7 @@ quit ;
   run ;
 
   title2 "Demographics Descriptives" ;
-
+  ods graphics / imagename = "demog_vars" ;
   proc sgpanel data = generic ;
     panelby gender / novarname uniscale = column ;
     * vbar site / response = pct2 group = gender stat = sum ;
@@ -557,6 +570,7 @@ quit ;
   run ;
 
   title3 "Common Values for Language" ;
+  ods graphics / imagename = "common_language" ;
   proc sgpanel data = lang ;
     panelby gender / novarname uniscale = column ;
     * vbar site / response = pct2 group = gender stat = sum ;
@@ -566,6 +580,7 @@ quit ;
   run ;
 
   title3 "Uncommon Values for Language" ;
+  ods graphics / imagename = "uncommon_language" ;
   proc sgpanel data = lang ;
     panelby gender / novarname uniscale = column ;
     * vbar site / response = pct2 group = gender stat = sum ;
@@ -575,6 +590,7 @@ quit ;
   run ;
 
   title3 "Common Values for Race" ;
+  ods graphics / imagename = "common_race" ;
   proc sgpanel data = race ;
     panelby gender / novarname uniscale = column ;
     * vbar site / response = pct2 group = gender stat = sum ;
@@ -584,6 +600,7 @@ quit ;
   run ;
 
   title3 "Uncommon Values for Race" ;
+  ods graphics / imagename = "uncommon_race" ;
   proc sgpanel data = race ;
     panelby gender / novarname uniscale = column ;
     * vbar site / response = pct2 group = gender stat = sum ;
@@ -594,10 +611,65 @@ quit ;
 
 %mend report_demog ;
 
-%regen ;
+%macro report_correlations(inset = col.flagcorr) ;
+  proc sql noprint ;
+    select site
+      into :allnulls separated by '", "'
+    from (
+        select site, r,  count(*) as num_vals
+        from &inset
+        group by site, r)
+    group by site
+    having count(*) = 1
+    ;
+  quit ;
+
+  proc template;
+    define statgraph corrHeatmap;
+     dynamic _BYVAL_ ;
+      begingraph;
+        entrytitle _BYVAL_ ;
+        rangeattrmap name='map';
+        /* select a series of colors that represent a "diverging"  */
+        /* range of values: stronger on the ends, weaker in middle */
+        /* Get ideas from http://colorbrewer.org                   */
+        range -1 - 1 / rangecolormodel=(cx483D8B  cxFFFFFF cxDC143C);
+        endrangeattrmap;
+        rangeattrvar var=r attrvar=r attrmap='map';
+        layout overlay /
+          xaxisopts=(display=(line ticks tickvalues))
+          yaxisopts=(display=(line ticks tickvalues));
+          heatmapparm x = x y = y colorresponse = r /
+            xbinaxis=false ybinaxis=false
+            name = "heatmap" display=all;
+          continuouslegend "heatmap" /
+            orient = vertical location = outside title="Pearson Correlation";
+        endlayout;
+      endgraph;
+    end;
+  run;
+
+  options nobyline ;
+
+  title2 "Correlations Between Insurance and Plan Type Flags" ;
+
+  ods graphics / imagename = "ins_plan_corr" ;
+  proc sgrender data = &inset template = corrHeatmap ;
+    by site ;
+    where site not in ("&allnulls") ;
+    format site $s. ;
+  run;
+
+  options byline ;
+
+%mend report_correlations ;
+
+
+* %regen ;
+* endsas ;
 
 options orientation = landscape ;
-ods graphics / height = 6in width = 10in ;
+ods graphics / height = 6in width = 10in  maxlegendarea = 25 ;
 
 %let out_folder = \\groups\data\CTRHS\Crn\voc\enrollment\reports_presentations\output\ ;
 
@@ -606,11 +678,16 @@ ods html path = "&out_folder" (URL=NONE)
          (title = "Enrollment + Demographics QA Output")
           ;
 
-ods rtf file = "&out_folder.enroll_demog_qa.rtf" device = sasemf style = magnify ;
+ods rtf file = "&out_folder.enroll_demog_qa.rtf"
+        device = sasemf
+        style = magnify
+        ;
 
-  footnote1 " " ;
+  footnote1 "* SDM Advises their E/D data is still under active development." ;
 
   title1 "Enrollment/Demographics QA Report" ;
+
+%macro overview ;
   proc sql number ;
     * describe table dictionary.tables ;
     create table submitting_sites as
@@ -619,17 +696,21 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf" device = sasemf style = magnify
     from dictionary.tables
     where libname = 'RAW' and memname like '%_TIER_ONE_RESULTS'
     ;
+
+    create table col.submitting_sites as
+    select * from submitting_sites
+    ;
   quit ;
 
   title2 "Sites submitting QA Results" ;
+  ods graphics / imagename = "submitting_sites" ;
   proc sgplot data = submitting_sites ;
     dot site / response = date_submitted ;
     xaxis grid ;
   run ;
-
   proc sql number ;
     * select * from submitting_sites ;
-    title2 "Sites that have not yet submitted QA Results" ;
+    title2 "Sites that have not submitted QA Results" ;
 
     * select * from sites ;
 
@@ -638,6 +719,10 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf" device = sasemf style = magnify
     where FMTNAME = 'S' AND label not in (select site from submitting_sites )
     order by label
     ;
+
+    %if &sqlobs = 0 %then %do ;
+      ods text = "All Sites have submitted QA output since at least Spring 2013!!!" ;
+    %end ;
 
     ods rtf exclude all ;
 
@@ -658,8 +743,13 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf" device = sasemf style = magnify
     order by 6
     ;
   quit ;
+%mend overview ;
+
+  %overview ;
 
   %report ;
+
+  %report_correlations ;
 
   %report_demog ;
 
@@ -691,5 +781,7 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf" device = sasemf style = magnify
     define label / width = 100 ;
   run;
 
+/*
+*/
  ods _all_ close ;
 

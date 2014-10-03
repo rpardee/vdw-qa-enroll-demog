@@ -35,9 +35,9 @@ options
   msglevel  = i
   formchar  = '|-++++++++++=|-/|<>*'
   /* dsoptions = note2err */
+  /* nosqlremerge */
   nocenter
   noovp
-  /* nosqlremerge */
   mprint
 ;
 
@@ -48,9 +48,9 @@ options
 %let root = //groups/data/CTRHS/Crn/voc/enrollment/programs/ghc_qa ;
 
 * Some sites are having trouble w/the calls to SGPlot--if you want to try to get the graphs please set this var to false. ;
-* Otherwise, please leave this be. ;
+* If you do and get errors, please keep it set to true. ;
 %let skip_graphs = true ;
-%let skip_graphs = false ;
+* %let skip_graphs = false ;
 
 * ======================== end edit section ======================== ;
 * ======================== end edit section ======================== ;
@@ -131,6 +131,23 @@ quit ;
     from to_go.&_siteabbr._noteworthy_vars
     where outcome in ("missing", "bad type")
     ;
+
+    select count(*)
+    into :num_demlang
+    from to_go.&_siteabbr._noteworthy_vars
+    where lowcase(dset) = 'demog' and lowcase(name) = 'primary_language'
+    ;
+
+    %if &num_demlang > 0 %then %do ;
+      insert into results(description, qa_macro, detail_dset, result)
+      values ("Primary_language still appears in demog.", '%check_vars', "to_go.noteworthy_vars","fail")
+      ;
+    %end ;
+    %else %do ;
+      insert into results(description, qa_macro, detail_dset, result)
+      values ("Primary_language has been removed from demog.", '%check_vars', "to_go.noteworthy_vars","pass")
+      ;
+    %end ;
     %if &num_bad > 0 %then %do ;
       insert into results(description, qa_macro, detail_dset, result)
       values ("Are all vars in the spec in the dataset & of proper type?", '%check_vars', "to_go.noteworthy_vars","fail")
@@ -144,7 +161,41 @@ quit ;
   quit ;
 %mend check_vars ;
 
-%macro enroll_tier_one(inset = &_vdw_enroll) ;
+/* This macro comes from: http://blogs.sas.com/content/sasdummy/2013/06/12/correlations-matrix-heatmap-with-sas/ */
+/* Prepare the correlations coeff matrix: Pearson's r method */
+%macro prepCorrData(in=,wtvar = wt, out=);
+  /* Run corr matrix for input data, all numeric vars */
+  proc corr data=&in. noprint
+    pearson
+    outp=work._tmpCorr
+    vardef=df
+  ;
+    weight &wtvar ;
+  run;
+
+  /* prep data for heat map */
+  data &out.;
+    keep x y r;
+    set work._tmpCorr(where=(_TYPE_="CORR"));
+    array v{*} _numeric_;
+    x = put(_NAME_, $flgnm.);
+    do i = dim(v) to 1 by -1;
+      y = put(vname(v(i)), $flgnm.);
+      r = v(i);
+      /* creates a lower triangular matrix */
+      if (i<_n_) then
+        r=.;
+      output;
+    end;
+  run;
+
+  proc datasets lib=work nolist nowarn;
+    delete _tmpcorr;
+  quit;
+%mend;
+
+
+%macro enroll_tier_one(inset = &_vdw_enroll, outcorr = to_go.&_siteabbr._flagcorr) ;
   /*
     Combines several checks in a quest for efficiency.
   */
@@ -156,7 +207,7 @@ quit ;
       , fail_lim numeric
     ) ;
 
-    insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: enrollment_basis', 'enrollment_basis has a bad value', 2, 5) ;
+    insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: enrollment_basis', 'enrollment_basis has a bad value', 0, 0) ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: drugcov', 'drugcov has a bad value', 2, 5) ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: ins_commercial', 'ins_commercial has a bad value', 2, 5) ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: ins_highdeductible', 'ins_highdeductible has a bad value', 2, 5) ;
@@ -186,8 +237,31 @@ quit ;
 
   quit ;
 
-  data to_stay.bad_enroll (drop = rid) periods (keep = mrn enr_start enr_end rid) ;
-    length problem $ 50 ;
+  data
+    to_stay.bad_enroll (drop = rid)
+    periods (keep = mrn enr_start enr_end rid)
+    tmpcorr (keep = mrn enr_start enr_end wt flg_:)
+  ;
+    length
+      flg_commercial
+      flg_highdeductible
+      flg_medicaid
+      flg_medicare
+      flg_medicare_a
+      flg_medicare_b
+      flg_medicare_c
+      flg_medicare_d
+      flg_other
+      flg_privatepay
+      flg_selffunded
+      flg_statesubsidized
+      flg_hmo
+      flg_pos
+      flg_ppo
+      flg_indemnity
+      3
+      problem $ 50
+    ;
     set &inset end = alldone ;
     if _n_ = 1 then do ;
       * Define a hash to hold all the MRN values we see, so we can check it against the ones in demog ;
@@ -205,6 +279,16 @@ quit ;
     * Periods gets everything. ;
     rid = _n_ ;
     output periods ;
+
+    * For flag correlation heatmap ;
+    array ins ins_commercial ins_highdeductible ins_medicaid ins_medicare ins_medicare_a ins_medicare_b ins_medicare_c ins_medicare_d ins_other ins_privatepay ins_selffunded ins_statesubsidized plan_hmo plan_pos plan_ppo plan_indemnity ;
+    array flg flg_commercial flg_highdeductible flg_medicaid flg_medicare flg_medicare_a flg_medicare_b flg_medicare_c flg_medicare_d flg_other flg_privatepay flg_selffunded flg_statesubsidized flg_hmo  flg_pos  flg_ppo  flg_indemnity ;
+    do i = 1 to dim(ins) ;
+      flg{i} = (ins{i} = 'Y') ;
+      wt = intck('month', enr_start, enr_end) + 1 ;
+    end ;
+    * tmpcorr also gets everything ;
+    output tmpcorr ;
 
     array flags{*}
       ins_commercial
@@ -226,6 +310,7 @@ quit ;
       drugcov
       outside_utilization
     ;
+
     do i = 1 to dim(flags) ;
       if put(flags(i), $flg.) = "bad" then do ;
         problem = lowcase(vname(flags(i))) || " has a bad value" ;
@@ -290,6 +375,8 @@ quit ;
     end ;
     drop i rc alldone ;
   run ;
+
+  %prepCorrData(in=tmpcorr(keep = wt flg_:), out=&outcorr) ;
 
   proc sql ;
     reset noprint ;
@@ -763,7 +850,6 @@ quit ;
     quit ;
 
   quit ;
-
 %mend make_denoms ;
 
 
@@ -832,7 +918,7 @@ quit ;
       ods graphics / height = 6in width = 10in ;
 
       proc sgplot data = gnu ;
-        loess x = year y = count / group = &this_var lineattrs = (thickness = .1 CM) ;
+        loess x = year y = count / group = &this_var lineattrs = (thickness = .1 CM pattern = solid) ;
         format count comma10.0 ;
         xaxis grid ;
         yaxis grid ;
@@ -973,13 +1059,50 @@ quit ;
   %end ;
 %mend fake_language ;
 
+%macro draw_heatmap(corrset = to_go.&_siteabbr._flagcorr) ;
+  %if &sysver ge 9.1 and %sysprod(graph) = 1 and &skip_graphs = false %then %do ;
+    proc template;
+      define statgraph corrHeatmap;
+       dynamic _Title;
+        begingraph;
+          entrytitle _Title;
+          rangeattrmap name='map';
+          /* select a series of colors that represent a "diverging"  */
+          /* range of values: stronger on the ends, weaker in middle */
+          /* Get ideas from http://colorbrewer.org                   */
+          range -1 - 1 / rangecolormodel=(cx483D8B  cxFFFFFF cxDC143C);
+          endrangeattrmap;
+          rangeattrvar var=r attrvar=r attrmap='map';
+          layout overlay /
+            xaxisopts=(display=(line ticks tickvalues))
+            yaxisopts=(display=(line ticks tickvalues));
+            heatmapparm x = x y = y colorresponse = r /
+              xbinaxis=false ybinaxis=false
+              name = "heatmap" display=all;
+            continuouslegend "heatmap" /
+              orient = vertical location = outside title="Pearson Correlation";
+          endlayout;
+        endgraph;
+      end;
+    run;
+    proc sgrender data=&corrset template=corrHeatmap;
+      dynamic _title="Relationship Between Insurance/Plan Flags: &_SiteName";
+    run;
+  %end ;
+%mend draw_heatmap ;
+
+
 %fake_language ;
 %check_vars ;
-%enroll_tier_one ;
 %demog_tier_one ;
 %lang_tier_one; *pjh19401;
-
+%enroll_tier_one ;
 %make_denoms ;
+
+/*
+options obs = 2000 ;
+*/
+
 
 data to_go.&_siteabbr._tier_one_results ;
   set results ;
@@ -989,6 +1112,7 @@ ods html path   = "%sysfunc(pathname(to_go))" (URL=NONE)
          gpath  = "%sysfunc(pathname(to_stay))"
          body   = "&_siteabbr._vdw_enroll_demog_qa.html"
          (title = "&_SiteName.: QA for Enroll/Demographics - Tier 1 & 1.5")
+         style  = magnify
           ;
 
   title1 "&_SiteName.: QA for Enroll/Demographics" ;
@@ -1000,7 +1124,7 @@ ods html path   = "%sysfunc(pathname(to_go))" (URL=NONE)
   title2 "Tier 1.5 Checks" ;
   %enroll_tier_one_point_five(outset = to_go.&_siteabbr._enroll_freqs) ;
   %demog_tier_one_point_five(outset = to_go.&_siteabbr._demog_freqs) ;
-
+  %draw_heatmap ;
 run ;
 
 ods _all_ close ;

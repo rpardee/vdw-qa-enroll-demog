@@ -634,6 +634,24 @@ proc format cntlout = fmt ;
     "U"     = 'Unknown'
     other   = 'bad'
   ;
+  value $flgnm
+    "flg_commercial"        = "Commercial"
+    "flg_highdeductible"    = "High-Deductible"
+    "flg_medicaid"          = "Medicaid"
+    "flg_medicare"          = "Medicare"
+    "flg_medicare_a"        = "Medicare Part A"
+    "flg_medicare_b"        = "Medicare Part B"
+    "flg_medicare_c"        = "Medicare Part C"
+    "flg_medicare_d"        = "Medicare Part D"
+    "flg_other"             = "Other"
+    "flg_privatepay"        = "Privatepay"
+    "flg_selffunded"        = "Self Funded"
+    "flg_statesubsidized"   = "State Subsidized"
+    "flg_hmo"               = "HMO"
+    "flg_pos"               = "Point of Service"
+    "flg_ppo"               = "Preferred Provider Organization"
+    "flg_indemnity"         = "Traditional Indemnity"
+  ;
 quit ;
 
 proc sql ;
