@@ -42,7 +42,7 @@ proc format cntlout = sites ;
     'HPHC' = 'Harvard'
     'HPI'  = 'HealthPartners'
     'MCRF' = 'Marshfield'
-    'SWH'  = 'Scott & White'
+    'SWH'  = 'Baylor Scott & White'
     'HFHS' = 'Henry Ford*'
     'GHS'  = 'Geisinger'
     'GHC'  = 'Group Health'
@@ -213,6 +213,7 @@ quit ;
       when ('Valid values: language') description = 'Valid values: lang_iso' ;
       when ('Valid values: primary')  description = 'Valid values: lang_primary' ;
       when ('Valid values: use')      description = 'Valid values: lang_usage' ;
+      when ('Primary_language has been removed from demog.') table = "Demographics" ;
       otherwise ; * <-- do nothing ;
     end ;
     label
@@ -229,6 +230,12 @@ quit ;
     ;
 
     reset exec noprint ;
+
+    * I messed up the check--used two different descriptions based on whether you passed or failed. ;
+    update tier_one_results
+    set description = 'Primary_language has been removed from demog.', table = "Demographics"
+    where description = 'Primary_language still appears in demog.'
+    ;
 
     * If lang table not defined, this should be one failure--take out the ones for the individual vars. ;
     select site
@@ -458,7 +465,7 @@ quit ;
   run ;
 
   proc sort data = ax ;
-    by site_name year ;
+    by year site_name ;
   run ;
 
   data col.drop_me ;
@@ -475,16 +482,17 @@ quit ;
   %let sz = .1 CM ;
   ods graphics / imagename = "enroll_counts" ;
   title2 "Raw record counts (&start_year to &end_year only)" ;
-  proc sgplot data = ax ;
+  proc sgplot data = ax nocycleattrs ;
     * loess x = year y = total_count / group = site_name smooth = &B lineattrs = (thickness = &th pattern = solid) ;
     * loess x = year y = high_count  / group = site_name smooth = &B lineattrs = (thickness = &th pattern = solid) y2axis ;
 
-    series x = year y = total_count / group = site_name lineattrs = (thickness = &th pattern = solid) markers MARKERATTRS = (size = &sz) ;
+    series x = year y = total_count / group = site_name lineattrs = (thickness = &th pattern = solid) markers MARKERATTRS = (size = &sz) name = 'normalsites' ;
     series x = year y = high_count  / group = site_name lineattrs = (thickness = &th pattern = solid) markers MARKERATTRS = (size = &sz) y2axis ;
     xaxis grid display = (nolabel) ;
     yaxis grid ;
     * keylegend / location = inside position = topleft noborder ;
-    keylegend / noborder across = 4 ;
+    * keylegend / noborder across = 4 ;
+    keylegend 'normalsites' / noborder ;
     where year between &start_year and &end_year ;
   run ;
 
@@ -676,6 +684,7 @@ ods graphics / height = 6in width = 10in  maxlegendarea = 25 ;
 ods html path = "&out_folder" (URL=NONE)
          body   = "enroll_demog_qa.html"
          (title = "Enrollment + Demographics QA Output")
+         style = magnify
           ;
 
 ods rtf file = "&out_folder.enroll_demog_qa.rtf"
