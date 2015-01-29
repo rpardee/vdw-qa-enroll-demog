@@ -57,7 +57,12 @@ enroll  ins_other               2   .
 enroll  ins_privatepay          2   .
 enroll  ins_selffunded          2   .
 enroll  ins_statesubsidized     2   .
-enroll  outside_utilization     2   .
+enroll  incomplete_outpt_rx     2   .
+enroll  incomplete_outpt_enc    2   .
+enroll  incomplete_inpt_enc     2   .
+enroll  incomplete_emr          2   .
+enroll  incomplete_tumor        2   .
+enroll  incomplete_lab          2   .
 enroll  pcc                     2   .
 enroll  pcp                     2   .
 enroll  plan_hmo                2   .
@@ -597,6 +602,16 @@ proc format cntlout = fmt ;
     "U"   = "unknown"
     "E"   = "external"
     other = "bad"
+  ;
+  value $incflg
+    "K" = "known incomplete"
+    "N" = "not known incomplete"
+    "X" = "not implemented"
+    other = "bad"
+  ;
+  * Including this so the program keeps running even if the enrollment file does not have the new incomplete* flags. ;
+  value incflg
+    other = "not in file"
   ;
   value $eb
     "I"   = "insurance"

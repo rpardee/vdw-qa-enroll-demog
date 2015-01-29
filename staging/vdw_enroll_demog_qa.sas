@@ -28,7 +28,7 @@
 * ======================= begin edit section ======================= ;
 
 * If roy forgets to comment this out, please do so.  Thanks/sorry! ;
-* %include "//home/pardre1/SAS/Scripts/remoteactivate.sas" ;
+%include "//home/pardre1/SAS/Scripts/remoteactivate.sas" ;
 
 options
   linesize  = 150
@@ -39,10 +39,13 @@ options
   nocenter
   noovp
   mprint
+  mlogic
 ;
 
 * Please edit this to point to your local standard vars file. ;
 %include "//ghrisas/Warehouse/Sasdata/CRN_VDW/lib/StdVars.sas" ;
+libname x "\\ghrisas\SASUser\pardre1\vdw\enroll" ;
+%let _vdw_enroll = x.enroll3_vw ;
 
 * Please edit this so it points to the location where you unzipped the files/folders. ;
 %let root = //groups/data/CTRHS/Crn/voc/enrollment/programs/ghc_qa ;
@@ -50,13 +53,16 @@ options
 * Some sites are having trouble w/the calls to SGPlot--if you want to try to get the graphs please set this var to false. ;
 * If you do and get errors, please keep it set to true. ;
 %let skip_graphs = true ;
-* %let skip_graphs = false ;
+%let skip_graphs = false ;
 
 * ======================== end edit section ======================== ;
 * ======================== end edit section ======================== ;
 * ======================== end edit section ======================== ;
 
 %include vdw_macs ;
+
+%let start_year = 2000 ;
+%let end_year = %sysfunc(date(), year4.) ;
 
 * Test program--replaces real enroll/demog with deformed versions. ;
 * %include "//groups/data/CTRHS/Crn/voc/enrollment/test_tier1_qa.sas" ;
@@ -69,7 +75,7 @@ libname to_go   "&root./to_send" ;
 
 proc sql ;
   create table results
-   ( description  char(60) label = "Description"
+   ( description  char(80) label = "Description"
    , qa_macro     char(30) label = "Name of the macro that does this check"
    , detail_dset  char(40) label = "Look for further details in this dataset"
    , num_bad      numeric  label = "For record-based checks, how many records offend the spec?" format = comma14.0
@@ -140,12 +146,28 @@ quit ;
 
     %if &num_demlang > 0 %then %do ;
       insert into results(description, qa_macro, detail_dset, result)
-      values ("Primary_language still appears in demog.", '%check_vars', "to_go.noteworthy_vars","fail")
+      values ("Primary_language has been removed from demog.", '%check_vars', "to_go.noteworthy_vars","fail")
       ;
     %end ;
     %else %do ;
       insert into results(description, qa_macro, detail_dset, result)
       values ("Primary_language has been removed from demog.", '%check_vars', "to_go.noteworthy_vars","pass")
+      ;
+    %end ;
+    select count(*)
+    into :num_outute
+    from to_go.&_siteabbr._noteworthy_vars
+    where lowcase(dset) = 'enroll' and lowcase(name) = 'outside_utilization'
+    ;
+
+    %if &num_outute > 0 %then %do ;
+      insert into results(description, qa_macro, detail_dset, result)
+      values ("Outside_utilization has been removed from enrollment.", '%check_vars', "to_go.noteworthy_vars","fail")
+      ;
+    %end ;
+    %else %do ;
+      insert into results(description, qa_macro, detail_dset, result)
+      values ("Outside_utilization has been removed from enrollment.", '%check_vars', "to_go.noteworthy_vars","pass")
       ;
     %end ;
     %if &num_bad > 0 %then %do ;
@@ -192,8 +214,7 @@ quit ;
   proc datasets lib=work nolist nowarn;
     delete _tmpcorr;
   quit;
-%mend;
-
+%mend prepCorrData ;
 
 %macro enroll_tier_one(inset = &_vdw_enroll, outcorr = to_go.&_siteabbr._flagcorr) ;
   /*
@@ -221,7 +242,13 @@ quit ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: ins_privatepay', 'ins_privatepay has a bad value', 2, 5) ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: ins_selffunded', 'ins_selffunded has a bad value', 2, 5) ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: ins_statesubsidized', 'ins_statesubsidized has a bad value', 2, 5) ;
-    insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: outside_utilization', 'outside_utilization has a bad value', 2, 5) ;
+    * insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: outside_utilization', 'outside_utilization has a bad value', 2, 5) ;
+    insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: incomplete_outpt_rx', 'incomplete_outpt_rx has a bad value', 2, 5) ;
+    insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: incomplete_outpt_enc', 'incomplete_outpt_enc has a bad value', 2, 5) ;
+    insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: incomplete_inpt_enc', 'incomplete_inpt_enc nas a bad value', 2, 5) ;
+    insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: incomplete_emr', 'incomplete_emr has a bad value', 2, 5) ;
+    insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: incomplete_lab', 'incomplete_lab has a bad value', 2, 5) ;
+    insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: incomplete_tumor', 'incomplete_tumor has a bad value', 2, 5) ;
 
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Start/end agreement', 'enr_end is before enr_start', 0, 0) ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Future end dates?' 'future enr_end', 1, 3) ;
@@ -232,7 +259,6 @@ quit ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Mcare D before program was established?', 'medicare part d prior to 2006', 1, 2) ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('High-deduct w/out commercial or private pay?', 'high-deduct w/out commercial or private pay', 1, 2) ;
 
-    insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Outside ute agrees with drugcov?', 'no drug coverage, but outside ute flag not set', 0, 0) ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Medicare Part D agrees with drugcov?', 'ins_medicare_d = Y, but drugcov = N', 0, 0) ;
 
   quit ;
@@ -261,6 +287,9 @@ quit ;
       flg_indemnity
       3
       problem $ 50
+      den_var $ 30
+      den_val $ 1
+      frq 5
     ;
     set &inset end = alldone ;
     if _n_ = 1 then do ;
@@ -268,6 +297,12 @@ quit ;
       declare hash mrns() ;
       mrns.definekey('mrn') ;
       mrns.definedone() ;
+      * And another to hold freqs for the incomplete_* vars to check for bad combos of values. ;
+      declare hash denvals() ;
+      denvals.definekey('den_var', 'den_val') ;
+      denvals.definedata('den_var', 'den_val', 'frq') ;
+      denvals.definedone() ;
+      call missing(den_var, den_val, frq) ;
     end ;
 
     * Add the current MRN to our list if it is not already there. ;
@@ -308,7 +343,6 @@ quit ;
       plan_pos
       plan_ppo
       drugcov
-      outside_utilization
     ;
 
     do i = 1 to dim(flags) ;
@@ -328,6 +362,31 @@ quit ;
     if enr_end gt "&sysdate"d then do ;
       problem = "future enr_end" ;
       output to_stay.bad_enroll ;
+    end ;
+
+    array denflgs{*}
+      incomplete_outpt_rx
+      incomplete_outpt_enc
+      incomplete_inpt_enc
+      incomplete_emr
+      incomplete_tumor
+      incomplete_lab
+    ;
+    do i = 1 to dim(denflgs) ;
+      den_var = lowcase(vname(denflgs(i))) ;
+      den_val = denflgs(i) ;
+      if denvals.find() = 0 then do ;
+        frq = frq + 1 ;
+        denvals.replace() ;
+      end ;
+      else do ;
+        frq = 1 ;
+        denvals.add() ;
+      end ;
+      if put(denflgs{i}, $incflg.) = "bad" then do ;
+        problem = den_var || " has a bad value" ;
+        output to_stay.bad_enroll ;
+      end ;
     end ;
 
     num_plans = countc(cats(plan_hmo, plan_indemnity, plan_pos, plan_ppo), 'Y') ;
@@ -362,23 +421,51 @@ quit ;
       output to_stay.bad_enroll ;
     end ;
 
-    if drugcov = 'N' and outside_utilization = 'N' then do ;
-      problem = "no drug coverage, but outside ute flag not set" ;
-      output to_stay.bad_enroll ;
-    end ;
     if drugcov = 'N' and ins_medicare_d = 'Y' then do ;
       problem = "ins_medicare_d = Y, but drugcov = N" ;
       output to_stay.bad_enroll ;
     end ;
     if alldone then do ;
       rc = mrns.output(dataset:"enroll_mrns") ;
+      rc = denvals.output(dataset:"denvals") ;
     end ;
-    drop i rc alldone ;
+    drop i rc alldone den_var den_val frq ;
   run ;
+  * REMOVE THIS ROY!!! ;
+  * data to_go.denvals ;
+  *   set denvals ;
+  * run ;
+
 
   %prepCorrData(in=tmpcorr(keep = wt flg_:), out=&outcorr) ;
 
   proc sql ;
+    * Check denominator vars for bad combos of X and not-X ;
+    create table xcounts as
+    select den_var
+          , sum(case when den_val = 'X' then 1 else 0 end) as num_xs
+          , count(*) as num_rows
+    from s.denvals
+    group by den_var
+    ;
+    * describe table results ;
+    create table den_res as
+    select substr(catx('', den_var, ': if any value = X, then ALL values must = X'), 1, 80) as description length = 80
+          , '%enroll_tier_one' as qa_macro
+          , 'n/a--sorry' as detail_dset
+          , . as num_bad
+          , . as percent_bad
+        , case when num_xs > 0 and num_rows > num_xs then 'fail' else 'pass' end as result
+    from xcounts
+    ;
+    insert into results (description, qa_macro, detail_dset, num_bad, percent_bad, result)
+    select *
+    from den_res
+    ;
+
+    drop table xcounts ;
+    drop table den_res ;
+
     reset noprint ;
     * Check MRNs from enroll against demog. ;
     select  count(e.mrn) as num_enroll_mrns
@@ -634,17 +721,13 @@ quit ;
 
 
   quit ;
-
 %mend demog_tier_one ;
 
 %macro make_denoms(outset = to_stay.denoms) ;
 
   /* This is copied from the make_denoms standard macro--adding in all the enroll vars. */
-  %local round_to start_year end_year ;
+  %local round_to ;
   %let round_to = 0.0001 ;
-  %let start_year = 1990 ;
-  %let end_year = %sysfunc(year("&sysdate9"d)) ;
-
   proc format ;
     ** 0-17, 18-64, 65+ ;
     value shrtage
@@ -668,17 +751,21 @@ quit ;
     ;
     ** For setting priority order to favor values of Y. ;
     value $dc
-      'Y'   = 'A'
-      'N'   = 'B'
-      'E'   = 'C'
-      other = 'D'
+      'Y'   = '10'
+      'K'   = '20'
+      'N'   = '30'
+      'E'   = '40'
+      'X'   = '50'
+      other = '60'
     ;
     ** For translating back to permissible values of DrugCov ;
     value $cd
-      'A' = 'Y'
-      'B' = 'N'
-      'C' = 'E'
-      'D' = 'U'
+      '10' = 'Y'
+      '20' = 'K'
+      '30' = 'N'
+      '40' = 'E'
+      '50' = 'X'
+      '60' = 'U'
     ;
     value $Race
       'WH' = 'White'
@@ -733,27 +820,32 @@ quit ;
     create table gnu as
     select mrn
           , year
-          , min(put(drugcov            , $dc.)) as drugcov
-          , min(put(outside_utilization, $dc.)) as outside_utilization
-          , min(put(enrollment_basis   , $eb.)) as enrollment_basis
-          , min(put(ins_commercial     , $dc.)) AS ins_commercial
-          , min(put(ins_highdeductible , $dc.)) AS ins_highdeductible
-          , min(put(ins_medicaid       , $dc.)) AS ins_medicaid
-          , min(put(ins_medicare       , $dc.)) AS ins_medicare
-          , min(put(ins_medicare_a     , $dc.)) AS ins_medicare_a
-          , min(put(ins_medicare_b     , $dc.)) AS ins_medicare_b
-          , min(put(ins_medicare_c     , $dc.)) AS ins_medicare_c
-          , min(put(ins_medicare_d     , $dc.)) AS ins_medicare_d
-          , min(put(ins_other          , $dc.)) AS ins_other
-          , min(put(ins_privatepay     , $dc.)) AS ins_privatepay
-          , min(put(ins_selffunded     , $dc.)) AS ins_selffunded
-          , min(put(ins_statesubsidized, $dc.)) AS ins_statesubsidized
-          , min(put(plan_hmo           , $dc.)) AS plan_hmo
-          , min(put(plan_indemnity     , $dc.)) AS plan_indemnity
-          , min(put(plan_pos           , $dc.)) AS plan_pos
-          , min(put(plan_ppo           , $dc.)) AS plan_ppo
-          , max((prxmatch("/[^ 0]/", pcc) > 0)) as pcc_probably_valid /* Experimental--GH has all-0 invalid values */
-          , max((prxmatch("/[^ 0]/", pcp) > 0)) as pcp_probably_valid /* Experimental--GH has all-0 invalid values */
+          , min(put(drugcov             , $dc.))  as drugcov
+          , min(put(incomplete_outpt_rx , $dc.))  as incomplete_outpt_rx
+          , min(put(incomplete_outpt_enc, $dc.))  as incomplete_outpt_enc
+          , min(put(incomplete_inpt_enc , $dc.))  as incomplete_inpt_enc
+          , min(put(incomplete_emr      , $dc.))  as incomplete_emr
+          , min(put(incomplete_lab      , $dc.))  as incomplete_lab
+          , min(put(incomplete_tumor    , $dc.))  as incomplete_tumor
+          , min(put(enrollment_basis    , $eb.))  as enrollment_basis
+          , min(put(ins_commercial      , $dc.))  as ins_commercial
+          , min(put(ins_highdeductible  , $dc.))  as ins_highdeductible
+          , min(put(ins_medicaid        , $dc.))  as ins_medicaid
+          , min(put(ins_medicare        , $dc.))  as ins_medicare
+          , min(put(ins_medicare_a      , $dc.))  as ins_medicare_a
+          , min(put(ins_medicare_b      , $dc.))  as ins_medicare_b
+          , min(put(ins_medicare_c      , $dc.))  as ins_medicare_c
+          , min(put(ins_medicare_d      , $dc.))  as ins_medicare_d
+          , min(put(ins_other           , $dc.))  as ins_other
+          , min(put(ins_privatepay      , $dc.))  as ins_privatepay
+          , min(put(ins_selffunded      , $dc.))  as ins_selffunded
+          , min(put(ins_statesubsidized , $dc.))  as ins_statesubsidized
+          , min(put(plan_hmo            , $dc.))  as plan_hmo
+          , min(put(plan_indemnity      , $dc.))  as plan_indemnity
+          , min(put(plan_pos            , $dc.))  as plan_pos
+          , min(put(plan_ppo            , $dc.))  as plan_ppo
+          , max((prxmatch("/[^ 0]/", pcc) > 0))   as pcc_probably_valid /* Experimental--GH has all-0 invalid values */
+          , max((prxmatch("/[^ 0]/", pcp) > 0))   as pcp_probably_valid /* Experimental--GH has all-0 invalid values */
           /* This depends on there being no overlapping periods to work! */
           , sum((min(enr_end, last_day) - max(enr_start, first_day) + 1) / num_days) as enrolled_proportion
     from  &_vdw_enroll as e INNER JOIN
@@ -770,30 +862,35 @@ quit ;
         , year
         , put(%calcage(birth_date, refdate = mdy(1, 1, year)), agecat.) as agegroup label = "Age on 1-jan of [[year]]"
         , gender
-        , put(race1, $race.)             as race length = 10
-        , put(hispanic           , $cd.) as hispanic
-        , put(needs_interpreter  , $cd.) as needs_interpreter
-        , put(drugcov            , $cd.) as drugcov
-        , put(outside_utilization, $cd.) as outside_utilization
+        , put(race1, $race.)              as race length = 10
+        , put(hispanic            , $cd.) as hispanic
+        , put(needs_interpreter   , $cd.) as needs_interpreter
+        , put(drugcov             , $cd.) as drugcov
+        , put(incomplete_outpt_rx , $cd.) as incomplete_outpt_rx
+        , put(incomplete_outpt_enc, $cd.) as incomplete_outpt_enc
+        , put(incomplete_inpt_enc , $cd.) as incomplete_inpt_enc
+        , put(incomplete_emr      , $cd.) as incomplete_emr
+        , put(incomplete_lab      , $cd.) as incomplete_lab
+        , put(incomplete_tumor    , $cd.) as incomplete_tumor
         , enrollment_basis
-        , put(ins_commercial     , $cd.) AS ins_commercial
-        , put(ins_highdeductible , $cd.) AS ins_highdeductible
-        , put(ins_medicaid       , $cd.) AS ins_medicaid
-        , put(ins_medicare       , $cd.) AS ins_medicare
-        , put(ins_medicare_a     , $cd.) AS ins_medicare_a
-        , put(ins_medicare_b     , $cd.) AS ins_medicare_b
-        , put(ins_medicare_c     , $cd.) AS ins_medicare_c
-        , put(ins_medicare_d     , $cd.) AS ins_medicare_d
-        , put(ins_other          , $cd.) AS ins_other
-        , put(ins_privatepay     , $cd.) AS ins_privatepay
-        , put(ins_selffunded     , $cd.) AS ins_selffunded
-        , put(ins_statesubsidized, $cd.) AS ins_statesubsidized
-        , put(plan_hmo           , $cd.) AS plan_hmo
-        , put(plan_indemnity     , $cd.) AS plan_indemnity
-        , put(plan_pos           , $cd.) AS plan_pos
-        , put(plan_ppo           , $cd.) AS plan_ppo
-        , put(pcp_probably_valid , bin.) AS pcp_probably_valid
-        , put(pcc_probably_valid , bin.) AS pcc_probably_valid
+        , put(ins_commercial      , $cd.) AS ins_commercial
+        , put(ins_highdeductible  , $cd.) AS ins_highdeductible
+        , put(ins_medicaid        , $cd.) AS ins_medicaid
+        , put(ins_medicare        , $cd.) AS ins_medicare
+        , put(ins_medicare_a      , $cd.) AS ins_medicare_a
+        , put(ins_medicare_b      , $cd.) AS ins_medicare_b
+        , put(ins_medicare_c      , $cd.) AS ins_medicare_c
+        , put(ins_medicare_d      , $cd.) AS ins_medicare_d
+        , put(ins_other           , $cd.) AS ins_other
+        , put(ins_privatepay      , $cd.) AS ins_privatepay
+        , put(ins_selffunded      , $cd.) AS ins_selffunded
+        , put(ins_statesubsidized , $cd.) AS ins_statesubsidized
+        , put(plan_hmo            , $cd.) AS plan_hmo
+        , put(plan_indemnity      , $cd.) AS plan_indemnity
+        , put(plan_pos            , $cd.) AS plan_pos
+        , put(plan_ppo            , $cd.) AS plan_ppo
+        , put(pcp_probably_valid  , bin.) AS pcp_probably_valid
+        , put(pcc_probably_valid  , bin.) AS pcc_probably_valid
         , enrolled_proportion
     from gnu as g LEFT JOIN
          &_vdw_demographic as d
@@ -801,11 +898,39 @@ quit ;
     ;
 
     %local vlist ;
-    %let vlist = year, agegroup, gender, race, hispanic, needs_interpreter, drugcov, outside_utilization, enrollment_basis,
-                ins_commercial, ins_highdeductible, ins_medicaid, ins_medicare,
-                ins_medicare_a, ins_medicare_b, ins_medicare_c, ins_medicare_d, ins_other,
-                ins_privatepay, ins_selffunded, ins_statesubsidized, plan_hmo, plan_indemnity,
-                plan_pos, plan_ppo, pcp_probably_valid, pcc_probably_valid ;
+    %let vlist = year
+            , agegroup
+            , gender
+            , race
+            , hispanic
+            , needs_interpreter
+            , drugcov
+            , incomplete_outpt_rx
+            , incomplete_outpt_enc
+            , incomplete_inpt_enc
+            , incomplete_emr
+            , incomplete_lab
+            , incomplete_tumor
+            , enrollment_basis
+            , ins_commercial
+            , ins_highdeductible
+            , ins_medicaid
+            , ins_medicare
+            , ins_medicare_a
+            , ins_medicare_b
+            , ins_medicare_c
+            , ins_medicare_d
+            , ins_other
+            , ins_privatepay
+            , ins_selffunded
+            , ins_statesubsidized
+            , plan_hmo
+            , plan_indemnity
+            , plan_pos
+            , plan_ppo
+            , pcp_probably_valid
+            , pcc_probably_valid
+            ;
 
     create table &outset as
     select &vlist
@@ -819,33 +944,38 @@ quit ;
     proc datasets nolist library = to_stay ;
       modify denoms ;
         label
-          year                = "Year of Enrollment"
-          agegroup            = "Age Group"
-          gender              = "Gender of Enrollee"
-          race                = "Race of Enrollee"
-          hispanic            = "Enrollee is Hispanic?"
-          needs_interpreter   = "Enrollee Needs an Interpreter?"
-          drugcov             = "Drug Coverage"
-          outside_utilization = "Do we know we have uncaptured encounters or rx fills for this person/period?"
-          enrollment_basis    = "What is the reason this person is in the enrollment file?"
-          ins_commercial      = "Has commercial insurance?"
-          ins_highdeductible  = "Has high-deductible insurance?"
-          ins_medicaid        = "Has medicaid coverage?"
-          ins_medicare        = "Has any type of medicare insurance?"
-          ins_medicare_a      = "Has medicare part A insurance?"
-          ins_medicare_b      = "Has medicare part B insurance?"
-          ins_medicare_c      = "Has medicare part C insurance?"
-          ins_medicare_d      = "Has medicare part D insurance?"
-          ins_other,          = "Has 'other' insurance?"
-          ins_privatepay      = "Has private pay insurance?"
-          ins_selffunded      = "Has self-funded insurance?"
-          ins_statesubsidized = "Has state-subsizided insurance?"
-          plan_hmo            = "Has HMO plan coverage?"
-          plan_indemnity      = "Has Indemnity coverage?"
-          plan_pos            = "Has Point-of-Service coverage?"
-          plan_ppo            = "Has Preferred-Provider-Organization coverage?"
-          pcp_probably_valid  = "Has a valid Primary Care Physician assignment?"
-          pcc_probably_valid  = "Has a valid Primary Care Clinic assignment?"
+          year                  = "Year of Enrollment"
+          agegroup              = "Age Group"
+          gender                = "Gender of Enrollee"
+          race                  = "Race of Enrollee"
+          hispanic              = "Enrollee is Hispanic?"
+          needs_interpreter     = "Enrollee Needs an Interpreter?"
+          drugcov               = "Drug Coverage"
+          incomplete_outpt_rx   = "Is there a known reason why capture of OUTPATIENT RX FILLS should be incomplete?"
+          incomplete_outpt_enc  = "Is there a known reason why capture of OUTPATIENT ENCOUNTERS should be incomplete?"
+          incomplete_inpt_enc   = "Is there a known reason why capture of INPATIENT ENCOUNTERS should be incomplete?"
+          incomplete_emr        = "Is there a known reason why capture of EMR data should be incomplete?"
+          incomplete_lab        = "Is there a known reason why capture of LAB RESULTS should be incomplete?"
+          incomplete_tumor      = "Is there a known reason why capture of TUMOR DATA should be incomplete?"
+          enrollment_basis      = "What is the reason this person is in the enrollment file?"
+          ins_commercial        = "Has commercial insurance?"
+          ins_highdeductible    = "Has high-deductible insurance?"
+          ins_medicaid          = "Has medicaid coverage?"
+          ins_medicare          = "Has any type of medicare insurance?"
+          ins_medicare_a        = "Has medicare part A insurance?"
+          ins_medicare_b        = "Has medicare part B insurance?"
+          ins_medicare_c        = "Has medicare part C insurance?"
+          ins_medicare_d        = "Has medicare part D insurance?"
+          ins_other,            = "Has 'other' insurance?"
+          ins_privatepay        = "Has private pay insurance?"
+          ins_selffunded        = "Has self-funded insurance?"
+          ins_statesubsidized   = "Has state-subsizided insurance?"
+          plan_hmo              = "Has HMO plan coverage?"
+          plan_indemnity        = "Has Indemnity coverage?"
+          plan_pos              = "Has Point-of-Service coverage?"
+          plan_ppo              = "Has Preferred-Provider-Organization coverage?"
+          pcp_probably_valid    = "Has a valid Primary Care Physician assignment?"
+          pcc_probably_valid    = "Has a valid Primary Care Clinic assignment?"
         ;
     quit ;
 
@@ -887,7 +1017,12 @@ quit ;
       ins_privatepay
       ins_selffunded
       ins_statesubsidized
-      outside_utilization
+      incomplete_outpt_rx
+      incomplete_outpt_enc
+      incomplete_inpt_enc
+      incomplete_emr
+      incomplete_tumor
+      incomplete_lab
       plan_hmo
       plan_indemnity
       plan_pos
@@ -910,6 +1045,7 @@ quit ;
       weight prorated_total ;
       format &this_var ;
     run ;
+
     * EXPERIMENTAL!   ;
     %if &sysver ge 9.1 and %sysprod(graph) = 1 and &skip_graphs = false %then %do ;
 
@@ -918,9 +1054,9 @@ quit ;
       ods graphics / height = 6in width = 10in ;
 
       proc sgplot data = gnu ;
-        loess x = year y = count / group = &this_var lineattrs = (thickness = .1 CM pattern = solid) ;
+        loess x = year y = count / group = &this_var lineattrs = (thickness = .1 CM pattern = solid) smooth = .5 ;
         format count comma10.0 ;
-        xaxis grid ;
+        xaxis grid values=(&start_year to &end_year by 1) ;
         yaxis grid ;
       run ;
     %end ;
@@ -942,7 +1078,6 @@ quit ;
     where count between 1 and &lowest_count
     ;
   quit ;
-
 %mend enroll_tier_one_point_five ;
 
 %macro demog_tier_one_point_five(outset = to_go.&_siteabbr._demog_freqs) ;
@@ -1015,7 +1150,6 @@ quit ;
     where count between 1 and &lowest_count
     ;
   quit ;
-
 %mend demog_tier_one_point_five ;
 
 %macro fake_language ;
@@ -1092,21 +1226,23 @@ quit ;
 %mend draw_heatmap ;
 
 
-%fake_language ;
 %check_vars ;
+%fake_language ;
 %demog_tier_one ;
 %lang_tier_one; *pjh19401;
+/*
+*/
+
 %enroll_tier_one ;
 %make_denoms ;
-
-/*
-options obs = 2000 ;
-*/
 
 
 data to_go.&_siteabbr._tier_one_results ;
   set results ;
 run ;
+
+options orientation = landscape ;
+ods graphics / height = 6in width = 10in ;
 
 ods html path   = "%sysfunc(pathname(to_go))" (URL=NONE)
          gpath  = "%sysfunc(pathname(to_stay))"
@@ -1114,6 +1250,12 @@ ods html path   = "%sysfunc(pathname(to_go))" (URL=NONE)
          (title = "&_SiteName.: QA for Enroll/Demographics - Tier 1 & 1.5")
          style  = magnify
           ;
+
+
+ods rtf file = "%sysfunc(pathname(to_stay))./&_siteabbr._vdw_enroll_demog_qa.rtf"
+        device = sasemf
+        style = magnify
+        ;
 
   title1 "&_SiteName.: QA for Enroll/Demographics" ;
   title2 "Tier One Checks" ;
@@ -1123,8 +1265,9 @@ ods html path   = "%sysfunc(pathname(to_go))" (URL=NONE)
 
   title2 "Tier 1.5 Checks" ;
   %enroll_tier_one_point_five(outset = to_go.&_siteabbr._enroll_freqs) ;
-  %demog_tier_one_point_five(outset = to_go.&_siteabbr._demog_freqs) ;
-  %draw_heatmap ;
+  * %demog_tier_one_point_five(outset = to_go.&_siteabbr._demog_freqs) ;
+  * %draw_heatmap ;
 run ;
 
 ods _all_ close ;
+

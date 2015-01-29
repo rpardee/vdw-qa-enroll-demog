@@ -513,6 +513,11 @@ quit ;
     format person_years comma12.0 ;
   run ;
 
+  proc sgplot data = tpy ;
+    dot site_name / response = person_years categoryorder = respdesc ;
+    xaxis grid ;
+  run ;
+
   title2 "Enrollment Variables (data between &start_year and &end_year only)" ;
   title3 "Enrollee Ages (as of 1-January of each Year)" ;
   ods graphics / imagename = "age_groups" ;
