@@ -28,7 +28,7 @@
 * ======================= begin edit section ======================= ;
 
 * If roy forgets to comment this out, please do so.  Thanks/sorry! ;
-%include "//home/pardre1/SAS/Scripts/remoteactivate.sas" ;
+* %include "//home/pardre1/SAS/Scripts/remoteactivate.sas" ;
 
 options
   linesize  = 150
@@ -42,10 +42,11 @@ options
   mlogic
 ;
 
+* Undefine all libnames, just in case I rely on GHC-specific nonstandard ones downstream. ;
+libname _all_ clear ;
+
 * Please edit this to point to your local standard vars file. ;
 %include "//ghrisas/Warehouse/Sasdata/CRN_VDW/lib/StdVars.sas" ;
-libname x "\\ghrisas\SASUser\pardre1\vdw\enroll" ;
-%let _vdw_enroll = x.enroll3_vw ;
 
 * Please edit this so it points to the location where you unzipped the files/folders. ;
 %let root = //groups/data/CTRHS/Crn/voc/enrollment/programs/ghc_qa ;
@@ -445,7 +446,7 @@ quit ;
     select den_var
           , sum(case when den_val = 'X' then 1 else 0 end) as num_xs
           , count(*) as num_rows
-    from s.denvals
+    from denvals
     group by den_var
     ;
     * describe table results ;
@@ -1252,7 +1253,7 @@ ods html path   = "%sysfunc(pathname(to_go))" (URL=NONE)
           ;
 
 
-ods rtf file = "%sysfunc(pathname(to_stay))./&_siteabbr._vdw_enroll_demog_qa.rtf"
+ods rtf file = "%sysfunc(pathname(to_stay))/&_siteabbr._vdw_enroll_demog_qa.rtf"
         device = sasemf
         style = magnify
         ;
@@ -1265,8 +1266,8 @@ ods rtf file = "%sysfunc(pathname(to_stay))./&_siteabbr._vdw_enroll_demog_qa.rtf
 
   title2 "Tier 1.5 Checks" ;
   %enroll_tier_one_point_five(outset = to_go.&_siteabbr._enroll_freqs) ;
-  * %demog_tier_one_point_five(outset = to_go.&_siteabbr._demog_freqs) ;
-  * %draw_heatmap ;
+  %demog_tier_one_point_five(outset = to_go.&_siteabbr._demog_freqs) ;
+  %draw_heatmap ;
 run ;
 
 ods _all_ close ;

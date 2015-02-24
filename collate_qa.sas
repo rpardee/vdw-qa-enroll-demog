@@ -128,6 +128,8 @@ proc format cntlout = sites ;
     'N'                 = 'No'
     'U'                 = 'Unknown'
     'E'                 = 'External'
+    'K'                 = 'Yes, known to be incomplete'
+    'X'                 = 'Not implemented'
   ;
   value $vars
       'agegroup'            = 'Age of Enrollees'
@@ -156,6 +158,12 @@ proc format cntlout = sites ;
       'plan_pos'            = 'Enrolled in a Point-Of-Service plan?'
       'plan_ppo'            = 'Enrolled in a Preferred Provider Organization plan?'
       'race'                = 'Race/Ethnicity'
+      'incomplete_emr'      = 'Capture of EMR data known incomplete?'
+      'incomplete_inpt_enc' = 'Capture of inpatient encounters known incomplete?'
+      'incomplete_lab'      = 'Capture of lab results known incomplete?'
+      'incomplete_outpt_enc'= 'Capture of outpatient encounters known incomplete?'
+      'incomplete_outpt_rx' = 'Capture of outpatient pharmacy known incomplete?'
+      'incomplete_tumor'    = 'Capture of tumor data known incomplete?'
   ;
   value $varcat
       'agegroup'            = 'Demogs'
@@ -168,6 +176,12 @@ proc format cntlout = sites ;
       'outside_utilization' = 'Meta'
       'pcc_probably_valid'  = 'Meta'
       'pcp_probably_valid'  = 'Meta'
+      'incomplete_emr'      = 'Meta'
+      'incomplete_inpt_enc' = 'Meta'
+      'incomplete_lab'      = 'Meta'
+      'incomplete_outpt_enc'= 'Meta'
+      'incomplete_outpt_rx' = 'Meta'
+      'incomplete_tumor'    = 'Meta'
       'ins_commercial'      = 'Ins type'
       'ins_highdeductible'  = 'Ins type'
       'ins_medicaid'        = 'Ins type'
@@ -317,9 +331,11 @@ quit ;
           r.var_name = t.var_name
     ;
 
+    * [RP 20150210: Not actually sure why we do this, but it is no help for the incomplete vars.] ;
     create table combos as
     select distinct site, var_name, &byvar, 'Y' as value
     from &nom
+    where var_name not like 'incomplete_%'
     ;
 
     create table supplement as
@@ -355,10 +371,10 @@ quit ;
   proc sql ;
     create table col.raw_enrollment_counts as
     select    site, year
-            , max(total) as total_count label = "No. of enrollees" format = comma12.0
+            , sum(total) as total_count label = "No. of enrollees" format = comma12.0
             , count(*) as num_recs
     from    col.enroll_freqs
-    where var_name = 'outside_utilization'
+    where var_name = 'drugcov'
     group by site, year
     ;
     create table col.raw_gender_counts as
@@ -472,16 +488,26 @@ quit ;
     set ax ;
     * where year between &start_year and &end_year ;
   run ;
-  * proc sql ;
-  *   insert into ax (year, site, high_count) values (2010, 'NSCH', 3600000) ;
-  * quit ;
+
+  proc sql ;
+    * Censor partial years on the basis of enrollment submit date ;
+    create table censored_ax as
+    select a.*
+    from ax as a INNER JOIN
+        col.submitting_sites as s
+    on  a.site_name = s.site
+    where a.year lt year(s.date_submitted)
+    ;
+
+    create table ax as select * from censored_ax ;
+  quit ;
 
   %local th B sz ;
   %let th = .03 CM ;
   %let B = .25 ;
   %let sz = .1 CM ;
   ods graphics / imagename = "enroll_counts" ;
-  title2 "Raw record counts (&start_year to &end_year only)" ;
+  title2 "Enrollee Counts Over Time (larger sites plotted against right-hand y-axis)" ;
   proc sgplot data = ax nocycleattrs ;
     * loess x = year y = total_count / group = site_name smooth = &B lineattrs = (thickness = &th pattern = solid) ;
     * loess x = year y = high_count  / group = site_name smooth = &B lineattrs = (thickness = &th pattern = solid) y2axis ;
@@ -500,7 +526,7 @@ quit ;
   proc sql ;
     create table tpy as
     select site_name label = "HMORN Site"
-        , sum(coalesce(total_count, high_count)) as person_years format = comma12.0 label = "Total no. of person/years"
+        , sum(coalesce(total_count, high_count)) * 1000 as person_years format = comma12.0 label = "Total no. of person/years"
     from ax
     group by site_name
     ;
@@ -678,7 +704,7 @@ quit ;
 %mend report_correlations ;
 
 
-* %regen ;
+%regen ;
 * endsas ;
 
 options orientation = landscape ;
