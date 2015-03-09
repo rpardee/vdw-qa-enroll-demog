@@ -34,7 +34,7 @@ libname col "\\groups\data\CTRHS\Crn\voc\enrollment\programs\qa_results" ;
  */
 
 proc format cntlout = sites ;
-  value $s
+  value $s (default = 22)
     /* 'HPRF' = 'HealthPartners' */
     /* 'LCF'  = 'Lovelace' */
     /* "FAL"  = "Fallon Community Health Plan" */
@@ -43,7 +43,7 @@ proc format cntlout = sites ;
     'HPI'  = 'HealthPartners'
     'MCRF' = 'Marshfield'
     'SWH'  = 'Baylor Scott & White'
-    'HFHS' = 'Henry Ford*'
+    'HFHS' = 'Henry Ford'
     'GHS'  = 'Geisinger'
     'GHC'  = 'Group Health'
     'PAMF' = 'Palo Alto'
@@ -54,8 +54,12 @@ proc format cntlout = sites ;
     "KPNC" = "KP Northern California"
     "KPSC" = "KP Southern California"
     "KPH"  = "KP Hawaii"
-    "FA"  = "Fallon Community HP"
+    "FA"   = "Fallon Community HP"
     "KPMA" = "KP Mid-Atlantic"
+  ;
+  value thrs
+    . = 'N/A'
+    other = [percent6.0]
   ;
   value $race
     'HP' = 'Native Hawaiian or Other Pacific Islander'
@@ -371,7 +375,7 @@ quit ;
   proc sql ;
     create table col.raw_enrollment_counts as
     select    site, year
-            , sum(total) as total_count label = "No. of enrollees" format = comma12.0
+            , max(total) as total_count label = "No. of enrollees" format = comma12.0
             , count(*) as num_recs
     from    col.enroll_freqs
     where var_name = 'drugcov'
@@ -425,7 +429,7 @@ quit ;
   run ;
 
   data gnu agegroups ;
-    length site $ 20 ;
+    length site $ 22 ;
     set gnu ;
     site = put(site, $s.) ;
     vcat = put(var_name, $varcat.) ;
@@ -464,7 +468,7 @@ quit ;
   run ;
 
   data ax ;
-    length site_name $ 20 ;
+    length site_name $ 22 ;
     set col.raw_enrollment_counts ;
     total_count = total_count / 1000 ;
     if site in ('KPNC', 'KPSC') then do ;
@@ -480,15 +484,6 @@ quit ;
     format high_count comma12.0 ;
   run ;
 
-  proc sort data = ax ;
-    by year site_name ;
-  run ;
-
-  data col.drop_me ;
-    set ax ;
-    * where year between &start_year and &end_year ;
-  run ;
-
   proc sql ;
     * Censor partial years on the basis of enrollment submit date ;
     create table censored_ax as
@@ -501,6 +496,15 @@ quit ;
 
     create table ax as select * from censored_ax ;
   quit ;
+
+  proc sort data = ax ;
+    by year site_name ;
+  run ;
+
+  data col.drop_me ;
+    set ax ;
+    * where year between &start_year and &end_year ;
+  run ;
 
   %local th B sz ;
   %let th = .03 CM ;
@@ -550,7 +554,6 @@ quit ;
   proc sgpanel data = agegroups ;
     panelby site / novarname uniscale = column columns = 5 rows = 4 ;
     series x = year y = pct / group = value lineattrs = (thickness = &th pattern = solid) ;
-    * where year between &start_year and &end_year ;
     colaxis grid ;
     rowaxis grid ;
     format pct percent8.0 ;
@@ -566,6 +569,26 @@ quit ;
     format var_name $vars. pct percent8.0 ;
   run ;
 
+  * ROY--REMOVE THIS!!! ;
+  ods graphics / imagename = "delete_me" ;
+  title3 "Incomplete_* vars--implementing sites only" ;
+  proc sgpanel data = gnu ;
+    panelby site / novarname uniscale = column columns = 3 rows = 3 ;
+    series x = year y = pct / group = value lineattrs = (thickness = &th pattern = solid) ;
+    colaxis grid ;
+    rowaxis grid ;
+    by vcat var_name ;
+    where var_name like 'incomplete_%' and site in ('Geisinger'
+                                              , 'Group Health'
+                                              , 'KP Colorado'
+                                              , "KP Northern California"
+                                              , "KP Hawaii"
+                                              , 'KP Northwest'
+                                              , "KP Southern California"
+                                              , 'Harvard'
+                                              , 'Marshfield') ;
+    format var_name $vars. pct percent8.0 ;
+  run ;
 %mend report ;
 
 %macro report_demog() ;
@@ -703,7 +726,6 @@ quit ;
 
 %mend report_correlations ;
 
-
 %regen ;
 * endsas ;
 
@@ -716,14 +738,16 @@ ods html path = "&out_folder" (URL=NONE)
          body   = "enroll_demog_qa.html"
          (title = "Enrollment + Demographics QA Output")
          style = magnify
+         nogfootnote
           ;
 
 ods rtf file = "&out_folder.enroll_demog_qa.rtf"
         device = sasemf
+        nogfootnote
         style = magnify
         ;
 
-  footnote1 "* SDM Advises their E/D data is still under active development." ;
+  * footnote1 "* SDM Advises their E/D data is still under active development." ;
 
   title1 "Enrollment/Demographics QA Report" ;
 
@@ -746,24 +770,11 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
   ods graphics / imagename = "submitting_sites" ;
   proc sgplot data = submitting_sites ;
     dot site / response = date_submitted ;
-    xaxis grid ;
+    xaxis grid values = ("01-feb-2014"d to "01-mar-2015"d by month) ;
   run ;
+
   proc sql number ;
-    * select * from submitting_sites ;
-    title2 "Sites that have not submitted QA Results" ;
-
-    * select * from sites ;
-
-    select label as site label = "Site"
-    from sites
-    where FMTNAME = 'S' AND label not in (select site from submitting_sites )
-    order by label
-    ;
-
-    %if &sqlobs = 0 %then %do ;
-      ods text = "All Sites have submitted QA output since at least Spring 2013!!!" ;
-    %end ;
-
+    * The full table is way too wide for the rtf output--cut it out of there. ;
     ods rtf exclude all ;
 
     title2 "Tier One (objective) checks--overall" ;
@@ -773,14 +784,17 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
     ods rtf ;
 
     title2 "Tier One--checks that tripped any failures or warnings" ;
-    select description, warn_lim, fail_lim
+    select description
+          , warn_lim / 100 format = thrs. label = "Warn Threshold"
+          , fail_lim / 100 format = thrs. label = "Fail Threshold"
           , sum(case when result = 'fail' then 1 else 0 end) as num_fails label = "Fails"
           , sum(case when result in ('warn', 'warning') then 1 else 0 end) as num_warns label = "Warnings"
           , sum(case when result = 'pass' then 1 else 0 end) as num_passes label = "Passes"
+          , sum(case when result = 'pass' then 1 else 0 end) / count(*) as pct_passes label = "Percent of Sites Passing" format = percent6.0
     from col.norm_tier_one_results
-    where description in (select description from col.norm_tier_one_results where result in ('fail', 'warn', 'warning'))
+    where description in (select description from col.norm_tier_one_results where result not in ('pass'))
     group by description, warn_lim, fail_lim
-    order by 6
+    order by 7
     ;
   quit ;
 %mend overview ;
