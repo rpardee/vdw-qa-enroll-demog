@@ -6,6 +6,7 @@
 *.rtf
 *.html
 *.png
+*.zip
 ghc_qa
 qa_results
 with_lang

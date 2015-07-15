@@ -11,7 +11,7 @@
 
 * ============== BEGIN EDIT SECTION ========================= ;
 * Please comment this include statement out if Roy forgets to--thanks/sorry! ;
-%include "\\home\pardre1\SAS\Scripts\remoteactivate.sas" ;
+* %include "\\home\pardre1\SAS\Scripts\remoteactivate.sas" ;
 
 options
   linesize  = 150
@@ -32,7 +32,11 @@ libname out "\\ghrisas\SASUser\pardre1\vdw\enroll" ;
 
 * Location where you want the output graphs.  Leave this as-is to put it in the same dir where the dsets are. ;
 %let out_folder = %sysfunc(pathname(out)) ;
-* ============== BEGIN EDIT SECTION ========================= ;
+
+* OPTIONAL--the minimum monthly enrollment to require for a data point to show up on plots. ;
+* Used to elide points for which the rate figures are unstable/implausible due to low N. ;
+%let min_n = 200 ;
+* ============== END EDIT SECTION ========================= ;
 
 proc format ;
    value $enct
@@ -51,22 +55,31 @@ proc format ;
 quit ;
 
 %macro graph_capture(rateset = out.rx_rates, incvar = incomplete_outpt_rx, ylab = "Pharmacy Fills Per Enrollee") ;
+  * Sort so legend colors are consistent from plot to plot ;
+  proc sort data = &rateset out = gnu ;
+    by first_day &incvar ;
+  run ;
+
   ods graphics / imagename = "&incvar" ;
-  proc sgplot data = &rateset ;
+  proc sgplot data = gnu ;
     title2 "Capture of &ylab" ;
     loess x = first_day y = rate / group = &incvar lineattrs = (pattern = solid) ;
     xaxis grid label = "Month" ;
     yaxis grid label = "&ylab per Enrollee (points + loess)" ;
     format n comma9.0 ;
-    where &incvar ne 'Unknown' and first_day le intnx('month', "&sysdate9."d, -3) and n > 10 ;
+    where &incvar ne 'Unknown' and n ge &min_n ;
     keylegend / title = "Data Capture" ;
   run ;
 %mend graph_capture ;
 
 %macro panel_ute(rateset = out.ute_rates_by_enctype, incvar = incomplete_outpt_enc, cols = 3, rows = 3) ;
   %* A special macro for ute by enctype--does sgpanel rather than sgplot. ;
+  proc sort data = &rateset out = gnu ;
+    by first_day &incvar ;
+  run ;
+
   ods graphics / imagename = "ute_panel" ;
-  proc sgpanel data = &rateset ;
+  proc sgpanel data = gnu ;
     title2 "Utilization Capture By Encounter Type" ;
     panelby extra / novarname columns = &cols rows = &rows ;
     loess x = first_day y = rate / group = &incvar lineattrs = (pattern = solid) ;
@@ -74,7 +87,7 @@ quit ;
     rowaxis grid label = "Encounters per Enrollee (points + loess)" ;
     keylegend / title = "Data Capture" ;
     format n comma9.0 extra $enct. ;
-    where &incvar ne 'Unknown' and first_day le intnx('month', "&sysdate9."d, -3) and n > 10 ;
+    where &incvar ne 'Unknown' and n ge &min_n ;
 %mend panel_ute ;
 
 options orientation = landscape ;
@@ -122,8 +135,8 @@ ods rtf file = "&out_folder./vdw_completeness.rtf" device = sasemf style = magni
                   ) ;
 
     %graph_capture(incvar  = incomplete_emr
-                  , rateset  = out.social_rates (where = (extra = 'P'))
-                  , ylab = EMR Data (Social History)
+                  , rateset  = out.vital_rates /* (where = (extra = 'P')) */
+                  , ylab = EMR Data (Vital Signs)
                   ) ;
 
 run ;

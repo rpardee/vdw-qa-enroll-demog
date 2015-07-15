@@ -6,12 +6,13 @@
 *
 * //groups/data/CTRHS/Crn/voc/enrollment/programs/simple_data_rates.sas
 *
-* Computes rates-over-time of various types of utilization by the new/proposed incompleteness flags.
+* Computes rates-over-time of various types of utilization by the new/proposed
+* incompleteness flags.
 *********************************************/
 
 * ============== BEGIN EDIT SECTION ========================= ;
 * Please comment this include statement out if Roy forgets to--thanks/sorry! ;
-%include "\\home\pardre1\SAS\Scripts\remoteactivate.sas" ;
+* %include "\\home\pardre1\SAS\Scripts\remoteactivate.sas" ;
 
 options
   linesize  = 150
@@ -21,19 +22,46 @@ options
   nocenter
   noovp
   nosqlremerge
+  sastrace    = ',,,d'
+  sastraceloc = saslog
 ;
 
 * Please change this to point to your local copy of StdVars.sas ;
 %include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/StdVars_Teradata.sas" ;
 
-* Where you want the output datasets and output. ;
+* Where you want the output datasets. ;
 libname out "\\ghrisas\SASUser\pardre1\vdw\enroll" ;
 
 * Years over which you want rate data ;
 %let start_year = 2000 ;
 %let end_year   = 2014 ; * <-- best to use last complete year ;
 
-libname td_tmp teradata
+/*
+
+  If your VDW files are not in an rdbms you can ignore the rest of this edit
+  section. If they are & you want to possibly save a ton of processing time,
+  please read on.
+
+  The bulk of the work of this program is done in a SQL join between VDW
+  enrollment, a substantive VDW file (like rx or tumor), and a small utility
+  dataset of the months between &start_year and &end_year.
+
+  If you have the wherewithal to create this utility dataset on the db server
+  where the rest of your VDW tables live, then SAS will (probably) pass the
+  join work off tothe db to complete, which is orders of magnitude faster than
+  having SAS pull your tables into temp datasets & do the join on the SAS
+  side. At Group Health (we use Teradata) making this change turned a job that
+  ran in about 14 hours into one that runs in 15 *minutes*.
+
+  TO DO SO, create a libname pointing at a db on the same server as VDW, to
+  which you have CREATE TABLE permissions.  You can see what I used at GH
+  commented-out, below.  I *believe* the 'connection = global' bit is necessary
+  to get the join pushed to the db, and that it works for rdbms' other than
+  Teradata, but am not positive.  I'd love to hear your experience if anybody
+  tries this out.
+*/
+
+* libname mylib teradata
   user              = "&clean_username@LDAP"
   password          = "&password"
   server            = "EDW_PROD1"
@@ -42,8 +70,13 @@ libname td_tmp teradata
   connection        = global
 ;
 
+%let tmplib = work ;
+* %let tmplib = mylib ;
 
 * ============== END EDIT SECTION ========================= ;
+
+* Bring VDW standard macros into the session. ;
+%include vdw_macs ;
 
 proc format ;
   value $inc
@@ -77,44 +110,35 @@ quit ;
               , datevar   =               /* name of the relevant date var (adate, rxdate, etc.) */
               , incvar    =               /* name of the incomplete_* var we are testing. */
               , outset    =               /* what to call the output dataset of rates. */
-              , extra_var = %str((1 = 1)) /* additional var to break rates out by--say, enctype for ute. */
+              , extra_var = -1            /* name of additional var to break rates out by--say, enctype for ute. */
               , enrlset   = &_vdw_enroll  /* Whats our source for start/stop periods? */
               , startvar  = enr_start     /* name of the var signifying periodstarts in the enrlset data. */
               , endvar    = enr_end       /* name of the var signifying period ends in the enrlset data. */
               ) ;
   * Creates counts of enrollees by the various completeness flags, plus median age, for every month in the time period indicated. ;
-  %gen_months(startyr = &startyr, endyr = &endyr, outset = td_tmp.inflate_months) ;
+  %removedset(dset = &tmplib..inflate_months) ;
+  %gen_months(startyr = &startyr, endyr = &endyr, outset = &tmplib..inflate_months) ;
   proc sql ;
-    create table raw as
+    create table summarized as
     select i.first_day length = 4
-          , e.mrn
           , e.&incvar
-          , &extra_var   as extra length = 3
-          , count(r.mrn) as num_events length = 4
-      from  td_tmp.inflate_months as i LEFT JOIN
+          , &extra_var   as extra
+          , count(distinct e.mrn) as n
+          , sum(case when r.mrn is null then 0 else 1 end) as num_events
+      from  &tmplib..inflate_months as i LEFT JOIN
             &enrlset as e
       on    e.&startvar le i.last_day AND
             e.&endvar   ge i.first_day LEFT JOIN
             &inset as r
       on    e.mrn = r.mrn AND
             r.&datevar between i.first_day and i.last_day
-      group by 1, 2, 3, 4
+      group by 1, 2, 3
       ;
   quit ;
-
-  proc summary nway data = raw ;
-    class first_day &incvar extra ;
-    var num_events ;
-    output out = summarized (drop = _type_ rename = (_freq_ = n))
-                sum(num_events)    = num_events
-                ;
-  run ;
+  %removedset(dset = &tmplib..inflate_months) ;
 
   * Correct Ns for runs where we have a substantive "extra" var. ;
-  * There is probably a fancy-pants way of doing this w/in the SUMMARY call above, but I dont ;
-  * have time to play with it ;
   proc sql ;
-    drop table raw ;
     create table true_ns as
     select first_day, &incvar, sum(n) as n
     from summarized
@@ -141,10 +165,8 @@ quit ;
   run ;
 %mend get_rates ;
 
-* TESTING--REMOVE THIS ROY!!! ;
-* options obs = 20000 ;
-
 /*
+*/
 %get_rates(startyr  = &start_year
           , endyr   = &end_year
           , inset   = &_vdw_rx
@@ -168,22 +190,25 @@ quit ;
           , outset  = out.ute_rates_by_enctype
           , extra_var  = coalesce(enctype, 'XX')
           ) ;
-*/
 
-%get_rates(startyr  = &start_year
-          , endyr   = &end_year
-          , inset   = &_vdw_social_hx
-          , datevar = contact_date
-          , incvar  = incomplete_emr
-          , outset  = out.social_rates
-          ) ;
-
-* %get_rates(startyr     = &start_year
+%get_rates(startyr     = &start_year
           , endyr      = &end_year
           , inset      = &_vdw_lab
           , datevar    = lab_dt
           , incvar     = incomplete_lab
           , outset     = out.lab_rates
+          ) ;
+
+* At Group Health we have more than just EMR-sourced data in vitals (social_hx too). ;
+* So we include our off-spec var 'dsource', so that we can limit which records we use in graph_data_rates.sas ;
+* Consider whether you may need to do likewise. ;
+%get_rates(startyr  = &start_year
+          , endyr   = &end_year
+          , inset   = &_vdw_vitalsigns
+          , datevar = measure_date
+          , incvar  = incomplete_emr
+          , outset  = out.vital_rates
+          /* , extra_var = coalesce(dsource, 'X') */
           ) ;
 
 
