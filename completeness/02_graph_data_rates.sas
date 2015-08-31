@@ -27,16 +27,15 @@ options
 * (This is just to get the _SiteName var into session--not hitting any data in this.) ;
 %include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/StdVars_Teradata.sas" ;
 
-* Location of your rate datasets--the ones produced by simple_data_rates.sas. ;
-libname out "\\ghrisas\SASUser\pardre1\vdw\enroll" ;
-
-* Location where you want the output graphs.  Leave this as-is to put it in the same dir where the dsets are. ;
-%let out_folder = %sysfunc(pathname(out)) ;
+* Please change this to the location where you unzipped this package. ;
+%let root = \\groups\data\CTRHS\Crn\voc\enrollment\programs\completeness ;
 
 * OPTIONAL--the minimum monthly enrollment to require for a data point to show up on plots. ;
 * Used to elide points for which the rate figures are unstable/implausible due to low N. ;
 %let min_n = 200 ;
 * ============== END EDIT SECTION ========================= ;
+
+libname out "&root./to_send" ;
 
 proc format ;
    value $enct
@@ -92,51 +91,50 @@ quit ;
 
 options orientation = landscape ;
 
-ods html path = "&out_folder" (URL=NONE)
+ods html path = "&root./do_not_send" (URL=NONE)
          body   = "vdw_completeness.html"
          (title = "Completeness of Data Capture in VDW for &_SiteName")
          style = magnify
          nogfootnote
-          ;
+        ;
 
-ods rtf file = "&out_folder./vdw_completeness.rtf" device = sasemf style = magnify ;
+ods rtf file = "&root./do_not_send/vdw_completeness.rtf" device = sasemf style = magnify ;
 
     ods graphics / height = 6in width = 10in ;
     title1 "Completeness of VDW Data for &_SiteName" ;
-    %graph_capture(rateset = out.rx_rates
+    %graph_capture(rateset = out.&_siteabbr._rx_rates
                   , incvar = incomplete_outpt_rx
                   , ylab = Pharmacy Fills
                   ) ;
-    %graph_capture(rateset = out.ute_rates_by_enctype (where = (extra = 'AV'))
+    %graph_capture(rateset = out.&_siteabbr._ute_out_rates_by_enctype (where = (extra = 'AV'))
                   , incvar = incomplete_outpt_enc
                   , ylab = Outpatient Encounters
                   ) ;
-    %graph_capture(rateset = out.ute_rates_by_enctype (where = (extra = 'IP'))
-                  , incvar = incomplete_outpt_enc
+    %graph_capture(rateset = out.&_siteabbr._ute_in_rates_by_enctype (where = (extra = 'IP'))
+                  , incvar = incomplete_inpt_enc
                   , ylab = Inpatient Encounters
                   ) ;
 
-    %panel_ute(rateset = out.ute_rates_by_enctype (where = (extra in ('AV', 'EM', 'TE')))
+    %panel_ute(rateset = out.&_siteabbr._ute_out_rates_by_enctype (where = (extra in ('AV', 'EM', 'TE')))
                 , incvar = incomplete_outpt_enc, rows = 1, cols = 3) ;
 
-    %panel_ute(rateset = out.ute_rates_by_enctype (where = (extra in ('ED', 'IP', 'IS')))
+    %panel_ute(rateset = out.&_siteabbr._ute_out_rates_by_enctype (where = (extra in ('ED', 'IP', 'IS')))
                 , incvar = incomplete_outpt_enc, rows = 1, cols = 3) ;
 
-    %panel_ute(rateset = out.ute_rates_by_enctype (where = (extra in ('LO', 'RO', 'OE')))
+    %panel_ute(rateset = out.&_siteabbr._ute_out_rates_by_enctype (where = (extra in ('LO', 'RO', 'OE')))
                 , incvar = incomplete_outpt_enc, rows = 1, cols = 3) ;
 
     %graph_capture(incvar  = incomplete_tumor
-                  , rateset  = out.tumor_rates
+                  , rateset  = out.&_siteabbr._tumor_rates
                   , ylab = Tumor Registry
                   ) ;
     %graph_capture(incvar  = incomplete_lab
-                  , rateset  = out.lab_rates
+                  , rateset  = out.&_siteabbr._lab_rates
                   , ylab = Lab Results
                   ) ;
-
     %graph_capture(incvar  = incomplete_emr
-                  , rateset  = out.vital_rates /* (where = (extra = 'P')) */
-                  , ylab = EMR Data (Vital Signs)
+                  , rateset  = out.&_siteabbr._emr_rates
+                  , ylab = EMR Data (Social History)
                   ) ;
 
 run ;

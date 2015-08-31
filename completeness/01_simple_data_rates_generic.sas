@@ -18,19 +18,19 @@ options
   linesize  = 150
   msglevel  = i
   formchar  = '|-++++++++++=|-/|<>*'
-  dsoptions = note2err
   nocenter
   noovp
   nosqlremerge
-  sastrace    = ',,,d'
-  sastraceloc = saslog
+  /* dsoptions   = note2err */
+  /* sastrace    = ',,,d' */
+  /* sastraceloc = saslog */
 ;
 
 * Please change this to point to your local copy of StdVars.sas ;
 %include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/StdVars_Teradata.sas" ;
 
-* Where you want the output datasets. ;
-libname out "\\ghrisas\SASUser\pardre1\vdw\enroll" ;
+* Please change this to the location where you unzipped this package. ;
+%let root = \\groups\data\CTRHS\Crn\voc\enrollment\programs\completeness ;
 
 * Years over which you want rate data ;
 %let start_year = 2000 ;
@@ -74,6 +74,8 @@ libname out "\\ghrisas\SASUser\pardre1\vdw\enroll" ;
 * %let tmplib = mylib ;
 
 * ============== END EDIT SECTION ========================= ;
+* Where you want the output datasets. ;
+libname out "&root./to_send" ;
 
 * Bring VDW standard macros into the session. ;
 %include vdw_macs ;
@@ -135,6 +137,7 @@ quit ;
       group by 1, 2, 3
       ;
   quit ;
+
   %removedset(dset = &tmplib..inflate_months) ;
 
   * Correct Ns for runs where we have a substantive "extra" var. ;
@@ -158,6 +161,9 @@ quit ;
     set &outset ;
     if n then rate = num_events / n ;
     &incvar = put(&incvar, $inc.) ;
+    * Censor any lower-than-permitted counts. ;
+    if n          and n          le &lowest_count then n          = .a ;
+    if num_events and num_events le &lowest_count then num_events = .a ;
     format
       n num_events comma10.0
       &incvar $30.
@@ -165,30 +171,38 @@ quit ;
   run ;
 %mend get_rates ;
 
-/*
-*/
 %get_rates(startyr  = &start_year
           , endyr   = &end_year
           , inset   = &_vdw_rx
           , datevar = rxdate
           , incvar  = incomplete_outpt_rx
-          , outset  = out.rx_rates) ;
+          , outset  = out.&_siteabbr._rx_rates
+          ) ;
 
 %get_rates(startyr  = &start_year
           , endyr   = &end_year
           , inset   = &_vdw_tumor
           , datevar = dxdate
           , incvar  = incomplete_tumor
-          , outset  = out.tumor_rates
+          , outset  = out.&_siteabbr._tumor_rates
           ) ;
 
-%get_rates(startyr  = &start_year
-          , endyr   = &end_year
-          , inset   = &_vdw_utilization
-          , datevar = adate
-          , incvar  = incomplete_outpt_enc
-          , outset  = out.ute_rates_by_enctype
-          , extra_var  = coalesce(enctype, 'XX')
+%get_rates(startyr    = &start_year
+          , endyr     = &end_year
+          , inset     = &_vdw_utilization
+          , datevar   = adate
+          , incvar    = incomplete_outpt_enc
+          , outset    = out.&_siteabbr._ute_out_rates_by_enctype
+          , extra_var = coalesce(enctype, 'XX')
+          ) ;
+
+%get_rates(startyr    = &start_year
+          , endyr     = &end_year
+          , inset     = &_vdw_utilization
+          , datevar   = adate
+          , incvar    = incomplete_inpt_enc
+          , outset    = out.&_siteabbr._ute_in_rates_by_enctype
+          , extra_var = coalesce(enctype, 'XX')
           ) ;
 
 %get_rates(startyr     = &start_year
@@ -196,19 +210,15 @@ quit ;
           , inset      = &_vdw_lab
           , datevar    = lab_dt
           , incvar     = incomplete_lab
-          , outset     = out.lab_rates
+          , outset     = out.&_siteabbr._lab_rates
           ) ;
 
-* At Group Health we have more than just EMR-sourced data in vitals (social_hx too). ;
-* So we include our off-spec var 'dsource', so that we can limit which records we use in graph_data_rates.sas ;
-* Consider whether you may need to do likewise. ;
 %get_rates(startyr  = &start_year
           , endyr   = &end_year
-          , inset   = &_vdw_vitalsigns
-          , datevar = measure_date
+          , inset   = &_vdw_social_hx
+          , datevar = contact_date
           , incvar  = incomplete_emr
-          , outset  = out.vital_rates
-          /* , extra_var = coalesce(dsource, 'X') */
+          , outset  = out.&_siteabbr._emr_rates
           ) ;
 
 
