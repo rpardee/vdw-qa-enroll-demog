@@ -9,7 +9,7 @@
 * Mashes submitted data together for reporting.
 *********************************************/
 
-* %include "h:/SAS/Scripts/remoteactivate.sas" ;
+%include "h:/SAS/Scripts/remoteactivate.sas" ;
 
 options
   linesize  = 150
@@ -102,7 +102,7 @@ quit ;
 
 %mend nonpanel_plot ;
 
-* %collate ;
+%collate ;
 
 options orientation = landscape ;
 ods graphics / height = 6in width = 10in ;
