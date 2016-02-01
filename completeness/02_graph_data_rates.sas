@@ -11,7 +11,7 @@
 
 * ============== BEGIN EDIT SECTION ========================= ;
 * Please comment this include statement out if Roy forgets to--thanks/sorry! ;
-* %include "\\home\pardre1\SAS\Scripts\remoteactivate.sas" ;
+%include "\\home\pardre1\SAS\Scripts\remoteactivate.sas" ;
 
 options
   linesize  = 150

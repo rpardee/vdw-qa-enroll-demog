@@ -14,6 +14,17 @@
 * Please comment this include statement out if Roy forgets to--thanks/sorry! ;
 * %include "\\home\pardre1\SAS\Scripts\remoteactivate.sas" ;
 
+%let ROC3W8=10.1.179.36;
+options COMAMID=TCP REMOTE=ROC3W8;
+
+* your include file should have %LET statements for your ;
+* userid and password ;
+%include '\\home\pardre1\SAS\login.sas';
+filename ROC3W8'\\ghcmaster\ghri\warehouse\remote\tcpwinbatch.scr';
+signon ROC3W8;
+
+options obs = 2000 ;
+
 options
   linesize  = 150
   msglevel  = i
@@ -61,7 +72,7 @@ options
   tries this out.
 */
 
-* libname mylib teradata
+libname mylib teradata
   user              = "&clean_username@LDAP"
   password          = "&password"
   server            = "EDW_PROD1"
@@ -70,8 +81,8 @@ options
   connection        = global
 ;
 
-%let tmplib = work ;
-* %let tmplib = mylib ;
+* %let tmplib = work ;
+%let tmplib = mylib ;
 
 * ============== END EDIT SECTION ========================= ;
 * Where you want the output datasets. ;
@@ -170,7 +181,7 @@ quit ;
     ;
   run ;
 %mend get_rates ;
-
+/*
 %get_rates(startyr  = &start_year
           , endyr   = &end_year
           , inset   = &_vdw_rx
@@ -212,10 +223,10 @@ quit ;
           , incvar     = incomplete_lab
           , outset     = out.&_siteabbr._lab_rates
           ) ;
-
+ */
 %get_rates(startyr  = &start_year
           , endyr   = &end_year
-          , inset   = &_vdw_social_hx
+          , inset   = &_vdw_social_hx (where = (gh_source = 'C'))
           , datevar = contact_date
           , incvar  = incomplete_emr
           , outset  = out.&_siteabbr._emr_rates

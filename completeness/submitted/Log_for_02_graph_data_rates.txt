@@ -1,0 +1,527 @@
+1 The SAS System                                                                                                      08:35 Sunday, September 13, 2015
+
+1          ;*';*";*/;quit;run;
+2          OPTIONS PAGENO=MIN;
+3          %LET _CLIENTTASKLABEL='02_graph_data_rates';
+4          %LET _CLIENTPROJECTPATH='/apps/sas/datasets/data3/MAVDW/data/HMORN/enroll_demog_lang/data_capture_rates_1509/data_capture_rates_1509.egp';
+5          %LET _CLIENTPROJECTNAME='data_capture_rates_1509.egp';
+6          %LET _SASPROGRAMFILE='/apps/sas/datasets/data3/MAVDW/data/HMORN/enroll_demog_lang/data_capture_rates_1509/02_graph_data_rates.sas';
+7          
+8          ODS _ALL_ CLOSE;
+9          OPTIONS DEV=ACTIVEX;
+10         GOPTIONS XPIXELS=0 YPIXELS=0;
+11         ODS LISTING GPATH=&sasworklocation;
+12         
+13         GOPTIONS ACCESSIBLE;
+14         /*********************************************
+15         * Roy Pardee
+16         * Group Health Research Institute
+17         * (206) 287-2078
+18         * pardee.r@ghc.org
+19         *
+20         * //groups/data/CTRHS/Crn/voc/enrollment/out_ute/vdw_outside_utilization_qa_wp01v02/sas/deleteme.sas
+21         *
+22         * purpose
+23         *********************************************/
+24         
+25         * ============== BEGIN EDIT SECTION ========================= ;
+26         * Please comment this include statement out if Roy forgets to--thanks/sorry! ;
+27         * %include "\\home\pardre1\SAS\Scripts\remoteactivate.sas" ;
+28         
+29         options
+30           linesize  = 150
+31           msglevel  = i
+32           formchar  = '|-++++++++++=|-/|<>*'
+33           dsoptions = note2err
+34           nocenter
+35           noovp
+36           nosqlremerge
+37         ;
+38         
+39         * Please replace this include statement with a reference to your own local StdVars.sas ;
+40         * (This is just to get the _SiteName var into session--not hitting any data in this.) ;
+41         **%include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/StdVars_Teradata.sas" ;
+42         %include "/apps/sas/datasets/data12/MAVDW/code/VDW_Support/StdVars.sas";
+NOTE: Libref __VDW was successfully assigned as follows: 
+      Engine:        V9 
+      Physical Name: /apps/sas/datasets/data61/MAVDW/VDW_Tables/Prod
+NOTE: Libref __CESR was successfully assigned as follows: 
+      Engine:        V9 
+      Physical Name: /apps/sas/datasets/data62/MAVDW/CESR
+7924       
+7925       * Please change this to the location where you unzipped this package. ;
+7926       **%let root = \\groups\data\CTRHS\Crn\voc\enrollment\programs\completeness ;
+7927       %let root = /apps/sas/datasets/data3/MAVDW/data/HMORN/enroll_demog_lang/data_capture_rates_1509;
+7928       
+7929       * OPTIONAL--the minimum monthly enrollment to require for a data point to show up on plots. ;
+7930       * Used to elide points for which the rate figures are unstable/implausible due to low N. ;
+7931       %let min_n = 200 ;
+7932       * ============== END EDIT SECTION ========================= ;
+7933       
+2 The SAS System                                                                                                      08:35 Sunday, September 13, 2015
+
+7934       libname out "&root./to_send" ;
+NOTE: Libref OUT was successfully assigned as follows: 
+      Engine:        V9 
+      Physical Name: /apps/sas/datasets/data3/MAVDW/data/HMORN/enroll_demog_lang/data_capture_rates_1509/to_send
+7935       
+7936       proc format ;
+7937          value $enct
+7938             'LO' = 'Lab Only'
+7939             'RO' = 'Radiology Only'
+7940             'OE' = 'Other'
+7941       
+7942             'ED' = 'Emergency Dept'
+7943             'IP' = 'Acute Inpatient Hospital Stay'
+7944             'IS' = 'Non-acute institutional'
+7945       
+7946             'AV' = 'Ambulatory visit'
+7947             'EM' = 'E-mail'
+7948             'TE' = 'Telephone'
+7949          ;
+NOTE: Format $ENCT has been output.
+7950       quit ;
+
+NOTE: PROCEDURE FORMAT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+7951       
+7952       %macro graph_capture(rateset = out.rx_rates, incvar = incomplete_outpt_rx, ylab = "Pharmacy Fills Per Enrollee") ;
+7953         * Sort so legend colors are consistent from plot to plot ;
+7954         proc sort data = &rateset out = gnu ;
+7955           by first_day &incvar ;
+7956         run ;
+7957       
+7958         ods graphics / imagename = "&incvar" ;
+7959         proc sgplot data = gnu ;
+7960           title2 "Capture of &ylab" ;
+7961           loess x = first_day y = rate / group = &incvar lineattrs = (pattern = solid) ;
+7962           xaxis grid label = "Month" ;
+7963           yaxis grid label = "&ylab per Enrollee (points + loess)" ;
+7964           format n comma9.0 ;
+7965           where &incvar ne 'Unknown' and n ge &min_n ;
+7966           keylegend / title = "Data Capture" ;
+7967         run ;
+7968       %mend graph_capture ;
+7969       
+7970       %macro panel_ute(rateset = out.ute_rates_by_enctype, incvar = incomplete_outpt_enc, cols = 3, rows = 3) ;
+7971         %* A special macro for ute by enctype--does sgpanel rather than sgplot. ;
+7972         proc sort data = &rateset out = gnu ;
+7973           by first_day &incvar ;
+7974         run ;
+7975       
+7976         ods graphics / imagename = "ute_panel" ;
+7977         proc sgpanel data = gnu ;
+7978           title2 "Utilization Capture By Encounter Type" ;
+7979           panelby extra / novarname columns = &cols rows = &rows ;
+7980           loess x = first_day y = rate / group = &incvar lineattrs = (pattern = solid) ;
+7981           colaxis grid label = "Month" ;
+3 The SAS System                                                                                                      08:35 Sunday, September 13, 2015
+
+7982           rowaxis grid label = "Encounters per Enrollee (points + loess)" ;
+7983           keylegend / title = "Data Capture" ;
+7984           format n comma9.0 extra $enct. ;
+7985           where &incvar ne 'Unknown' and n ge &min_n ;
+7986       %mend panel_ute ;
+7987       
+7988       options orientation = landscape ;
+7989       
+7990       ods html path = "&root./do_not_send" (URL=NONE)
+7991                body   = "vdw_completeness.html"
+7992                (title = "Completeness of Data Capture in VDW for &_SiteName")
+7993                style = magnify
+7994                nogfootnote
+7995               ;
+NOTE: Writing HTML Body file: vdw_completeness.html
+7996       
+7997       ods rtf file = "&root./do_not_send/vdw_completeness.rtf" device = sasemf style = magnify ;
+NOTE: Writing RTF Body file: /apps/sas/datasets/data3/MAVDW/data/HMORN/enroll_demog_lang/data_capture_rates_1509/do_not_send/vdw_completeness.rtf
+7998       
+7999           ods graphics / height = 6in width = 10in ;
+8000           title1 "Completeness of VDW Data for &_SiteName" ;
+8001           %graph_capture(rateset = out.&_siteabbr._rx_rates
+8002                         , incvar = incomplete_outpt_rx
+8003                         , ylab = Pharmacy Fills
+8004                         ) ;
+
+NOTE: There were 180 observations read from the data set OUT.KPMA_RX_RATES.
+NOTE: SAS sort was used.
+NOTE: The data set WORK.GNU has 180 observations and 6 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.03 seconds
+      cpu time            0.01 seconds
+      
+
+
+NOTE: PROCEDURE SGPLOT used (Total process time):
+      real time           11.21 seconds
+      cpu time            0.19 seconds
+      
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: Listing image output written to /apps/sas/datasets/temp_ma/SAS_work1E280158006A_szapap5/SAS_workBA0C0158006A_szapap5/incomplete_outpt_rx.png.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: There were 180 observations read from the data set WORK.GNU.
+      WHERE (incomplete_outpt_rx not = 'Unknown') and (n>=200);
+
+8005           %graph_capture(rateset = out.&_siteabbr._ute_out_rates_by_enctype (where = (extra = 'AV'))
+8006                         , incvar = incomplete_outpt_enc
+8007                         , ylab = Outpatient Encounters
+8008                         ) ;
+
+NOTE: There were 180 observations read from the data set OUT.KPMA_UTE_OUT_RATES_BY_ENCTYPE.
+      WHERE extra='AV';
+NOTE: SAS sort was used.
+NOTE: The data set WORK.GNU has 180 observations and 6 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.02 seconds
+      cpu time            0.01 seconds
+4 The SAS System                                                                                                      08:35 Sunday, September 13, 2015
+
+      
+
+
+NOTE: PROCEDURE SGPLOT used (Total process time):
+      real time           1.22 seconds
+      cpu time            0.14 seconds
+      
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: Listing image output written to /apps/sas/datasets/temp_ma/SAS_work1E280158006A_szapap5/SAS_workBA0C0158006A_szapap5/incomplete_outpt_enc.png.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: There were 180 observations read from the data set WORK.GNU.
+      WHERE (incomplete_outpt_enc not = 'Unknown') and (n>=200);
+
+8009           %graph_capture(rateset = out.&_siteabbr._ute_in_rates_by_enctype (where = (extra = 'IP'))
+8010                         , incvar = incomplete_inpt_enc
+8011                         , ylab = Inpatient Encounters
+8012                         ) ;
+
+NOTE: There were 180 observations read from the data set OUT.KPMA_UTE_IN_RATES_BY_ENCTYPE.
+      WHERE extra='IP';
+NOTE: SAS sort was used.
+NOTE: The data set WORK.GNU has 180 observations and 6 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.01 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: PROCEDURE SGPLOT used (Total process time):
+      real time           1.05 seconds
+      cpu time            0.14 seconds
+      
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: Listing image output written to /apps/sas/datasets/temp_ma/SAS_work1E280158006A_szapap5/SAS_workBA0C0158006A_szapap5/incomplete_inpt_enc.png.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: There were 180 observations read from the data set WORK.GNU.
+      WHERE (incomplete_inpt_enc not = 'Unknown') and (n>=200);
+
+8013       
+8014           %panel_ute(rateset = out.&_siteabbr._ute_out_rates_by_enctype (where = (extra in ('AV', 'EM', 'TE')))
+8015                       , incvar = incomplete_outpt_enc, rows = 1, cols = 3) ;
+
+NOTE: There were 486 observations read from the data set OUT.KPMA_UTE_OUT_RATES_BY_ENCTYPE.
+      WHERE extra in ('AV', 'EM', 'TE');
+NOTE: SAS sort was used.
+NOTE: The data set WORK.GNU has 486 observations and 6 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+8016       
+8017           %panel_ute(rateset = out.&_siteabbr._ute_out_rates_by_enctype (where = (extra in ('ED', 'IP', 'IS')))
+8018                       , incvar = incomplete_outpt_enc, rows = 1, cols = 3) ;
+
+NOTE: PROCEDURE SGPANEL used (Total process time):
+5 The SAS System                                                                                                      08:35 Sunday, September 13, 2015
+
+      real time           3.15 seconds
+      cpu time            0.28 seconds
+      
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Listing image output written to /apps/sas/datasets/temp_ma/SAS_work1E280158006A_szapap5/SAS_workBA0C0158006A_szapap5/ute_panel.png.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: There were 486 observations read from the data set WORK.GNU.
+      WHERE (incomplete_outpt_enc not = 'Unknown') and (n>=200);
+
+
+NOTE: There were 520 observations read from the data set OUT.KPMA_UTE_OUT_RATES_BY_ENCTYPE.
+      WHERE extra in ('ED', 'IP', 'IS');
+NOTE: SAS sort was used.
+NOTE: The data set WORK.GNU has 520 observations and 6 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+6 The SAS System                                                                                                      08:35 Sunday, September 13, 2015
+
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+8019       
+8020           %panel_ute(rateset = out.&_siteabbr._ute_out_rates_by_enctype (where = (extra in ('LO', 'RO', 'OE')))
+8021                       , incvar = incomplete_outpt_enc, rows = 1, cols = 3) ;
+
+NOTE: PROCEDURE SGPANEL used (Total process time):
+      real time           2.86 seconds
+      cpu time            0.27 seconds
+      
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Listing image output written to /apps/sas/datasets/temp_ma/SAS_work1E280158006A_szapap5/SAS_workBA0C0158006A_szapap5/ute_panel2.png.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+7 The SAS System                                                                                                      08:35 Sunday, September 13, 2015
+
+NOTE: There were 520 observations read from the data set WORK.GNU.
+      WHERE (incomplete_outpt_enc not = 'Unknown') and (n>=200);
+
+
+NOTE: There were 540 observations read from the data set OUT.KPMA_UTE_OUT_RATES_BY_ENCTYPE.
+      WHERE extra in ('LO', 'OE', 'RO');
+NOTE: SAS sort was used.
+NOTE: The data set WORK.GNU has 540 observations and 6 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+8022       
+8023           %graph_capture(incvar  = incomplete_tumor
+8024                         , rateset  = out.&_siteabbr._tumor_rates
+8025                         , ylab = Tumor Registry
+8026                         ) ;
+
+NOTE: PROCEDURE SGPANEL used (Total process time):
+      real time           2.42 seconds
+      cpu time            0.30 seconds
+      
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Listing image output written to /apps/sas/datasets/temp_ma/SAS_work1E280158006A_szapap5/SAS_workBA0C0158006A_szapap5/ute_panel4.png.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+8 The SAS System                                                                                                      08:35 Sunday, September 13, 2015
+
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: Some of the tick values have been thinned.
+NOTE: There were 540 observations read from the data set WORK.GNU.
+      WHERE (incomplete_outpt_enc not = 'Unknown') and (n>=200);
+
+
+NOTE: There were 180 observations read from the data set OUT.KPMA_TUMOR_RATES.
+NOTE: SAS sort was used.
+NOTE: The data set WORK.GNU has 180 observations and 6 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.01 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: PROCEDURE SGPLOT used (Total process time):
+      real time           0.71 seconds
+      cpu time            0.14 seconds
+      
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: Listing image output written to /apps/sas/datasets/temp_ma/SAS_work1E280158006A_szapap5/SAS_workBA0C0158006A_szapap5/incomplete_tumor.png.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: There were 180 observations read from the data set WORK.GNU.
+      WHERE (incomplete_tumor not = 'Unknown') and (n>=200);
+
+8027           %graph_capture(incvar  = incomplete_lab
+8028                         , rateset  = out.&_siteabbr._lab_rates
+8029                         , ylab = Lab Results
+8030                         ) ;
+
+NOTE: There were 180 observations read from the data set OUT.KPMA_LAB_RATES.
+NOTE: SAS sort was used.
+NOTE: The data set WORK.GNU has 180 observations and 6 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.01 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: PROCEDURE SGPLOT used (Total process time):
+      real time           0.56 seconds
+      cpu time            0.14 seconds
+      
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: Listing image output written to /apps/sas/datasets/temp_ma/SAS_work1E280158006A_szapap5/SAS_workBA0C0158006A_szapap5/incomplete_lab.png.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: There were 180 observations read from the data set WORK.GNU.
+9 The SAS System                                                                                                      08:35 Sunday, September 13, 2015
+
+      WHERE (incomplete_lab not = 'Unknown') and (n>=200);
+
+8031           %graph_capture(incvar  = incomplete_emr
+8032                         , rateset  = out.&_siteabbr._emr_rates
+8033                         , ylab = EMR Data (Social History)
+8034                         ) ;
+
+NOTE: There were 180 observations read from the data set OUT.KPMA_EMR_RATES.
+NOTE: SAS sort was used.
+NOTE: The data set WORK.GNU has 180 observations and 6 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.01 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: PROCEDURE SGPLOT used (Total process time):
+      real time           0.63 seconds
+      cpu time            0.15 seconds
+      
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: Listing image output written to /apps/sas/datasets/temp_ma/SAS_work1E280158006A_szapap5/SAS_workBA0C0158006A_szapap5/incomplete_emr.png.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: The column format MMDDYY10 is replaced by an auto-generated format on the axis.
+NOTE: There were 180 observations read from the data set WORK.GNU.
+      WHERE (incomplete_emr not = 'Unknown') and (n>=200);
+
+8035       
+8036       run ;
+8037       
+8038       ods _all_ close ;
+8039       
+8040       
+8041       GOPTIONS NOACCESSIBLE;
+8042       %LET _CLIENTTASKLABEL=;
+8043       %LET _CLIENTPROJECTPATH=;
+8044       %LET _CLIENTPROJECTNAME=;
+8045       %LET _SASPROGRAMFILE=;
+8046       
+8047       ;*';*";*/;quit;run;
+8048       ODS _ALL_ CLOSE;
+8049       
+8050       
+8051       QUIT; RUN;
+8052       
