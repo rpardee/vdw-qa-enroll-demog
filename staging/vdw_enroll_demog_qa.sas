@@ -594,7 +594,8 @@ quit ;
   * Step 2--calculate the duration of each period. ;
   data periods ;
     set periods ;
-    duration_in_months = intck('month', enr_start, enr_end) + ((enr_end - enr_start) > 15) ;
+    duration_in_months = (enr_end - enr_start) / 30 ;
+    label duration_in_months = 'No. of 30-day months in this period' ;
   run ;
 
   * Step 3--output stats on the distribution. ;

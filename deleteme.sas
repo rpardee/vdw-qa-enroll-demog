@@ -6,7 +6,6 @@
 *
 * //groups/data/CTRHS/Crn/voc/enrollment/programs/deleteme.sas
 *
-* Count medicare A-only people with and without drug coverage.
 *********************************************/
 
 %include "h:/SAS/Scripts/remoteactivate.sas" ;
@@ -21,47 +20,12 @@ options
   nosqlremerge
 ;
 
-%include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/StdVars_Teradata.sas" ;
-
-* options obs = 10000 ;
-
-data gnu ;
-  set &_vdw_enroll (keep = mrn enr_: ins_medicare: drugcov) ;
-  where enr_start le '31-dec-2002'd and enr_end ge '01-dec-1999'd  ;
-  mcare = '____' ;
-  if ins_medicare_a = 'Y' then substr(mcare, 1, 1) = 'A' ;
-  if ins_medicare_b = 'Y' then substr(mcare, 2, 1) = 'B' ;
-  if ins_medicare_c = 'Y' then substr(mcare, 3, 1) = 'C' ;
-  if ins_medicare_d = 'Y' then substr(mcare, 4, 1) = 'D' ;
-
-run ;
-
-data yrs ;
-  do yr = 1999 to 2002 ;
-    do mo = 1 to 12 ;
-      dat = mdy(mo, 15, yr) ;
-      output ;
-    end ;
-  end ;
-  format dat mmddyy10. ;
-run ;
-
-proc sql ;
-  create table s.counts as
-  select dat, mcare, drugcov, count(distinct mrn) as num_ppl
-  from  gnu INNER JOIN
-        yrs
-  on    yrs.dat between gnu.enr_start and gnu.enr_end
-  group by dat, mcare, drugcov
-  ;
-quit ;
-
+libname col "\\groups\data\CTRHS\Crn\voc\enrollment\programs\qa_results" ;
 
 options orientation = landscape ;
 
+* %let out_folder = //groups/data/CTRHS/Crn/voc/enrollment/programs/ ;
 %let out_folder = %sysfunc(pathname(s)) ;
-
-ods graphics / height = 8in width = 10in ;
 
 ods html path = "&out_folder" (URL=NONE)
          body   = "deleteme.html"
@@ -69,30 +33,26 @@ ods html path = "&out_folder" (URL=NONE)
          style = magnify
           ;
 
-  proc sgpanel data = s.counts ;
-    panelby mcare ;
-    loess x = dat y = num_ppl / group = drugcov ;
-    where drugcov ne 'U' and mcare like '%A%' ;
-    rowaxis grid ;
-    colaxis grid ;
-    format num_ppl comma9.0 ;
+* ods rtf file = "&out_folder.deleteme.rtf" device = sasemf ;
+
+* Put this line before opening any ODS destinations. ;
+options orientation = landscape ;
+
+  ods graphics / height = 6in width = 10in ;
+
+  proc sgplot data = col.py_dur ;
+    scatter x = person_years y = duration_p50 / yerrorlower = duration_p25
+                                                yerrorupper = duration_p75
+                                                errorbarattrs = (color = lightyellow thickness = .7mm)
+                                                datalabel = site
+                                                datalabelattrs = (size = 2.5mm)
+                                                markerattrs = (symbol = circlefilled size = 3mm)
+                                                ;
+    xaxis grid ; * values = (&earliest to "31dec2010"d by month ) ;
+    yaxis grid label = "Typical Enrollment Duration (median + 25th/75th percentiles)" ;
   run ;
 
-  proc sort data = s.counts out = gnu ;
-    by mcare ;
-  run ;
-
-  proc sgplot data = gnu ;
-    loess x = dat y = num_ppl / group = drugcov ;
-    where drugcov ne 'U' and mcare like '%A%' ;
-    xaxis grid ;
-    yaxis grid ;
-    format num_ppl comma9.0 ;
-    by mcare ;
-  run ;
 
 run ;
 
 ods _all_ close ;
-
-
