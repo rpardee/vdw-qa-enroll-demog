@@ -1,0 +1,32 @@
+Topic: Health Informatics, Big Data and Virtual Data Warehouse
+Title: VDW Data Capture Revisited: The New Enrollment Flags
+
+Authors: Roy Pardee,
+
+Mathur, Priyam (Priyam.Mathur@umassmed.edu)
+Lee.Cromwell@kp.org
+Aumer, Susan M (Susan.M.Aumer@HealthPartners.Com)
+Joseph Leader (jbleader@geisinger.edu)
+'Daniel.K.Ng@kp.org' (Daniel.K.Ng@kp.org)
+Cleveland, Catherine R (Catherine.R.Cleveland@kpchr.org)
+Hoch, Brian A (HOCH.BRIAN@mcrf.mfldclin.edu)
+Kenkare, Pragati (kenkarp@pamf.org)
+William.H.Harding@kp.org
+celia.l.jordan@kp.org
+yun.tian@kp.org
+
+Background
+  At the 2014 Annual Meeting, Bachman et al. presented an excellent investigation into rates of encounters and drug fills at VDW sites, in order to evaluate (among other things) the VDW enrollment file's OUTSIDE_UTILIZATION field, which purported to flag periods during which data capture of either pharmacy or encounter data was suspect.  That investigation revealed serious problems with the flag, calling its usefulness into serious question.
+
+  Taking this to heart, the Enrollment workgroup proposed doing away with this field, and adding a suite of six new flags, each intended to express confidence in the capture of pharmacy, lab, outpatient encounters, inpatient encounters, tumor and EMR data individually.
+
+  The proposed presentation will report our evaluation of these six new variables.
+
+Methods
+  Modeled after Bachman et al.'s work, we calculated rates of pharmacy fills, lab results, encounters, tumor records and vital signs by the appropriate new variable.  We then plotted these rates over time to see whether in fact the people/periods flagged as having suspect data capture did in fact have lower rates than those who were not.
+
+Results
+  At those sites that implemented the flags, data capture rates generally varied in line with  expectations--suspected-incomplete groups had markedly lower rates.  Of the six flags, incomplete_rx saw the best implementations, with all seven implementing sites showing clear distinctions between people whose capture was suspect and those where it was not.  Incomplete_tumor has the most variable implementations, with clear distinctions at some sites but not others.
+
+Conclusions
+  On balance, the new flags stand to improve the quality of data-based research in the HCSRN.  Projects needing to define populations at risk of e.g., exposure to particular pharmacy fills, tumors, or  lab result values would do well to use the new flags to screen out people on whom we would not know if they had these exposures.

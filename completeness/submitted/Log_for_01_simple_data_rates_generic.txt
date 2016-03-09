@@ -1,0 +1,529 @@
+1                                                          The SAS System                           08:35 Sunday, September 13, 2015
+
+1          ;*';*";*/;quit;run;
+2          OPTIONS PAGENO=MIN;
+3          %LET _CLIENTTASKLABEL='01_simple_data_rates_generic';
+4          %LET _CLIENTPROJECTPATH='';
+5          %LET _CLIENTPROJECTNAME='';
+6          %LET
+6        ! _SASPROGRAMFILE='/apps/sas/datasets/data3/MAVDW/data/HMORN/enroll_demog_lang/data_capture_rates_1509/01_simple_data_rates
+6        ! _generic.sas';
+7          
+8          ODS _ALL_ CLOSE;
+9          OPTIONS DEV=ACTIVEX;
+10         GOPTIONS XPIXELS=0 YPIXELS=0;
+11         ODS LISTING GPATH=&sasworklocation;
+12         
+13         GOPTIONS ACCESSIBLE;
+14         /*********************************************
+15         * Roy Pardee
+16         * Group Health Research Institute
+17         * (206) 287-2078
+18         * pardee.r@ghc.org
+19         *
+20         * //groups/data/CTRHS/Crn/voc/enrollment/programs/simple_data_rates.sas
+21         *
+22         * Computes rates-over-time of various types of utilization by the new/proposed
+23         * incompleteness flags.
+24         *********************************************/
+25         
+26         * ============== BEGIN EDIT SECTION ========================= ;
+27         * Please comment this include statement out if Roy forgets to--thanks/sorry! ;
+28         * %include "\\home\pardre1\SAS\Scripts\remoteactivate.sas" ;
+29         
+30         options
+31           linesize  = 150
+32           msglevel  = i
+33           formchar  = '|-++++++++++=|-/|<>*'
+34           nocenter
+35           noovp
+36           nosqlremerge
+37           /* dsoptions   = note2err */
+38           /* sastrace    = ',,,d' */
+39           /* sastraceloc = saslog */
+40         ;
+41         
+42         
+43         * Please change this to point to your local copy of StdVars.sas ;
+44         **%include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/StdVars_Teradata.sas" ;
+45         %include "/apps/sas/datasets/data12/MAVDW/code/VDW_Support/StdVars.sas";
+NOTE: Libref __VDW was successfully assigned as follows: 
+      Engine:        V9 
+      Physical Name: /apps/sas/datasets/data61/MAVDW/VDW_Tables/Prod
+NOTE: Libref __CESR was successfully assigned as follows: 
+      Engine:        V9 
+      Physical Name: /apps/sas/datasets/data62/MAVDW/CESR
+7927       
+7928       * Please change this to the location where you unzipped this package. ;
+7929       **%let root = \\groups\data\CTRHS\Crn\voc\enrollment\programs\completeness ;
+7930       %let root = /apps/sas/datasets/data3/MAVDW/data/HMORN/enroll_demog_lang/data_capture_rates_1509;
+7931       
+2 The SAS System                                                                                                      08:35 Sunday, September 13, 2015
+
+7932       * Years over which you want rate data ;
+7933       %let start_year = 2000 ;
+7934       %let end_year   = 2014 ; * <-- best to use last complete year ;
+7935       
+7936       /*
+7937       
+7938         If your VDW files are not in an rdbms you can ignore the rest of this edit
+7939         section. If they are & you want to possibly save a ton of processing time,
+7940         please read on.
+7941       
+7942         The bulk of the work of this program is done in a SQL join between VDW
+7943         enrollment, a substantive VDW file (like rx or tumor), and a small utility
+7944         dataset of the months between &start_year and &end_year.
+7945       
+7946         If you have the wherewithal to create this utility dataset on the db server
+7947         where the rest of your VDW tables live, then SAS will (probably) pass the
+7948         join work off tothe db to complete, which is orders of magnitude faster than
+7949         having SAS pull your tables into temp datasets & do the join on the SAS
+7950         side. At Group Health (we use Teradata) making this change turned a job that
+7951         ran in about 14 hours into one that runs in 15 *minutes*.
+7952       
+7953         TO DO SO, create a libname pointing at a db on the same server as VDW, to
+7954         which you have CREATE TABLE permissions.  You can see what I used at GH
+7955         commented-out, below.  I *believe* the 'connection = global' bit is necessary
+7956         to get the join pushed to the db, and that it works for rdbms' other than
+7957         Teradata, but am not positive.  I'd love to hear your experience if anybody
+7958         tries this out.
+7959       */
+7960       
+7961       * libname mylib teradata
+7962         user              = "&clean_username@LDAP"
+7963         password          = "&password"
+7964         server            = "EDW_PROD1"
+7965         schema            = "%sysget(username)"
+7966         multi_datasrc_opt = in_clause
+7967         connection        = global
+7968       ;
+7969       
+7970       %let tmplib = work ;
+7971       * %let tmplib = mylib ;
+7972       
+7973       * ============== END EDIT SECTION ========================= ;
+7974       * Where you want the output datasets. ;
+7975       libname out "&root./to_send" ;
+NOTE: Libref OUT was successfully assigned as follows: 
+      Engine:        V9 
+      Physical Name: /apps/sas/datasets/data3/MAVDW/data/HMORN/enroll_demog_lang/data_capture_rates_1509/to_send
+7976       
+7977       * Bring VDW standard macros into the session. ;
+7978       %include vdw_macs ;
+15694      
+15695      proc format ;
+15696        value $inc
+15697          "K" = "Suspected Incomplete"
+15698          "N" = "Not Suspected Incomplete"
+15699          "X" = "Not Implemented"
+15700        other = "Unknown"
+15701        ;
+3 The SAS System                                                                                                      08:35 Sunday, September 13, 2015
+
+NOTE: Format $INC has been output.
+15702      quit ;
+
+NOTE: PROCEDURE FORMAT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+15703      
+15704      %macro gen_months(startyr = 2000, endyr = 2014, outset = months) ;
+15705        %* Utility macro--just spits out a dset of months. ;
+15706        data &outset ;
+15707          do yr = &startyr to &endyr ;
+15708            do mo = 1 to 12 ;
+15709              first_day = mdy(mo, 1, yr) ;
+15710              last_day = intnx('month', first_day, 0, 'end') ;
+15711              if first_day le "&sysdate"d then  output ;
+15712            end ;
+15713          end ;
+15714          format
+15715            first_day
+15716            last_day mmddyy10.
+15717          ;
+15718        run ;
+15719      %mend gen_months ;
+15720      
+15721      %macro get_rates(startyr =
+15722                    , endyr     =
+15723                    , inset     =               /* the substantive dset that holds the type of data whose capture is described in incvar */
+15724                    , datevar   =               /* name of the relevant date var (adate, rxdate, etc.) */
+15725                    , incvar    =               /* name of the incomplete_* var we are testing. */
+15726                    , outset    =               /* what to call the output dataset of rates. */
+15727                    , extra_var = -1            /* name of additional var to break rates out by--say, enctype for ute. */
+15728                    , enrlset   = &_vdw_enroll  /* Whats our source for start/stop periods? */
+15729                    , startvar  = enr_start     /* name of the var signifying periodstarts in the enrlset data. */
+15730                    , endvar    = enr_end       /* name of the var signifying period ends in the enrlset data. */
+15731                    ) ;
+15732        * Creates counts of enrollees by the various completeness flags, plus median age, for every month in the time period indicated. ;
+15733        %removedset(dset = &tmplib..inflate_months) ;
+15734        %gen_months(startyr = &startyr, endyr = &endyr, outset = &tmplib..inflate_months) ;
+15735        proc sql ;
+15736          create table summarized as
+15737          select i.first_day length = 4
+15738                , e.&incvar
+15739                , &extra_var   as extra
+15740                , count(distinct e.mrn) as n
+15741                , sum(case when r.mrn is null then 0 else 1 end) as num_events
+15742            from  &tmplib..inflate_months as i LEFT JOIN
+15743                  &enrlset as e
+15744            on    e.&startvar le i.last_day AND
+15745                  e.&endvar   ge i.first_day LEFT JOIN
+15746                  &inset as r
+15747            on    e.mrn = r.mrn AND
+15748                  r.&datevar between i.first_day and i.last_day
+15749            group by 1, 2, 3
+15750            ;
+15751        quit ;
+15752      
+4 The SAS System                                                                                                      08:35 Sunday, September 13, 2015
+
+15753        %removedset(dset = &tmplib..inflate_months) ;
+15754      
+15755        * Correct Ns for runs where we have a substantive "extra" var. ;
+15756        proc sql ;
+15757          create table true_ns as
+15758          select first_day, &incvar, sum(n) as n
+15759          from summarized
+15760          group by first_day, &incvar
+15761          ;
+15762          create table &outset as
+15763          select s.*, t.n
+15764          from  summarized (drop = n)  as s INNER JOIN
+15765                true_ns as t
+15766          on    s.first_day = t.first_day AND
+15767                s.&incvar = t.&incvar
+15768          ;
+15769        quit ;
+15770      
+15771        data &outset ;
+15772          length &incvar $ 30 ;
+15773          set &outset ;
+15774          if n then rate = num_events / n ;
+15775          &incvar = put(&incvar, $inc.) ;
+15776          * Censor any lower-than-permitted counts. ;
+15777          if n          and n          le &lowest_count then n          = .a ;
+15778          if num_events and num_events le &lowest_count then num_events = .a ;
+15779          format
+15780            n num_events comma10.0
+15781            &incvar $30.
+15782          ;
+15783        run ;
+15784      %mend get_rates ;
+15785      
+15786      %get_rates(startyr  = &start_year
+15787                , endyr   = &end_year
+15788                , inset   = &_vdw_rx
+15789                , datevar = rxdate
+15790                , incvar  = incomplete_outpt_rx
+15791                , outset  = out.&_siteabbr._rx_rates
+15792                ) ;
+
+NOTE: The data set WORK.INFLATE_MONTHS has 180 observations and 4 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: At least one nonessential grouping column reference has been removed from a GROUP BY's reference list.
+NOTE: The execution of this query involves performing one or more Cartesian product joins that can not be optimized.
+NOTE: SAS threaded sort was used.
+NOTE: Table WORK.SUMMARIZED created, with 180 rows and 5 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           19:47.69
+      cpu time            13:10.87
+      
+
+NOTE: Table WORK.INFLATE_MONTHS has been dropped.
+5 The SAS System                                                                                                      08:35 Sunday, September 13, 2015
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.01 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: Table WORK.TRUE_NS created, with 180 rows and 3 columns.
+
+NOTE: Table OUT.KPMA_RX_RATES created, with 180 rows and 5 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.01 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 180 observations read from the data set OUT.KPMA_RX_RATES.
+NOTE: The data set OUT.KPMA_RX_RATES has 180 observations and 6 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.02 seconds
+      
+
+15793      
+15794      %get_rates(startyr  = &start_year
+15795                , endyr   = &end_year
+15796                , inset   = &_vdw_tumor
+15797                , datevar = dxdate
+15798                , incvar  = incomplete_tumor
+15799                , outset  = out.&_siteabbr._tumor_rates
+15800                ) ;
+
+NOTE: The data set WORK.INFLATE_MONTHS has 180 observations and 4 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: At least one nonessential grouping column reference has been removed from a GROUP BY's reference list.
+NOTE: The execution of this query involves performing one or more Cartesian product joins that can not be optimized.
+NOTE: SAS threaded sort was used.
+NOTE: Table WORK.SUMMARIZED created, with 180 rows and 5 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           4:21.30
+      cpu time            3:14.87
+      
+
+NOTE: Table WORK.INFLATE_MONTHS has been dropped.
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: Table WORK.TRUE_NS created, with 180 rows and 3 columns.
+
+NOTE: Table OUT.KPMA_TUMOR_RATES created, with 180 rows and 5 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+6 The SAS System                                                                                                      08:35 Sunday, September 13, 2015
+
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+
+NOTE: There were 180 observations read from the data set OUT.KPMA_TUMOR_RATES.
+NOTE: The data set OUT.KPMA_TUMOR_RATES has 180 observations and 6 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+15801      
+15802      %get_rates(startyr    = &start_year
+15803                , endyr     = &end_year
+15804                , inset     = &_vdw_utilization
+15805                , datevar   = adate
+15806                , incvar    = incomplete_outpt_enc
+15807                , outset    = out.&_siteabbr._ute_out_rates_by_enctype
+15808                , extra_var = coalesce(enctype, 'XX')
+15809                ) ;
+
+NOTE: The data set WORK.INFLATE_MONTHS has 180 observations and 4 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: The execution of this query involves performing one or more Cartesian product joins that can not be optimized.
+NOTE: SAS threaded sort was used.
+NOTE: Table WORK.SUMMARIZED created, with 1726 rows and 5 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           1:01:13.72
+      cpu time            39:15.25
+      
+
+NOTE: Table WORK.INFLATE_MONTHS has been dropped.
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: Table WORK.TRUE_NS created, with 180 rows and 3 columns.
+
+NOTE: Table OUT.KPMA_UTE_OUT_RATES_BY_ENCTYPE created, with 1726 rows and 5 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.01 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 1726 observations read from the data set OUT.KPMA_UTE_OUT_RATES_BY_ENCTYPE.
+NOTE: The data set OUT.KPMA_UTE_OUT_RATES_BY_ENCTYPE has 1726 observations and 6 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.01 seconds
+      cpu time            0.01 seconds
+7 The SAS System                                                                                                      08:35 Sunday, September 13, 2015
+
+      
+
+15810      
+15811      %get_rates(startyr    = &start_year
+15812                , endyr     = &end_year
+15813                , inset     = &_vdw_utilization
+15814                , datevar   = adate
+15815                , incvar    = incomplete_inpt_enc
+15816                , outset    = out.&_siteabbr._ute_in_rates_by_enctype
+15817                , extra_var = coalesce(enctype, 'XX')
+15818                ) ;
+
+NOTE: The data set WORK.INFLATE_MONTHS has 180 observations and 4 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+NOTE: The execution of this query involves performing one or more Cartesian product joins that can not be optimized.
+NOTE: SAS threaded sort was used.
+NOTE: Table WORK.SUMMARIZED created, with 1726 rows and 5 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           1:03:06.24
+      cpu time            39:43.58
+      
+
+NOTE: Table WORK.INFLATE_MONTHS has been dropped.
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: Table WORK.TRUE_NS created, with 180 rows and 3 columns.
+
+NOTE: Table OUT.KPMA_UTE_IN_RATES_BY_ENCTYPE created, with 1726 rows and 5 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.01 seconds
+      cpu time            0.02 seconds
+      
+
+
+NOTE: There were 1726 observations read from the data set OUT.KPMA_UTE_IN_RATES_BY_ENCTYPE.
+NOTE: The data set OUT.KPMA_UTE_IN_RATES_BY_ENCTYPE has 1726 observations and 6 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.02 seconds
+      cpu time            0.00 seconds
+      
+
+15819      
+15820      %get_rates(startyr     = &start_year
+15821                , endyr      = &end_year
+15822                , inset      = &_vdw_lab
+15823                , datevar    = lab_dt
+15824                , incvar     = incomplete_lab
+15825                , outset     = out.&_siteabbr._lab_rates
+15826                ) ;
+8 The SAS System                                                                                                      08:35 Sunday, September 13, 2015
+
+
+NOTE: The data set WORK.INFLATE_MONTHS has 180 observations and 4 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: At least one nonessential grouping column reference has been removed from a GROUP BY's reference list.
+NOTE: The execution of this query involves performing one or more Cartesian product joins that can not be optimized.
+NOTE: SAS threaded sort was used.
+NOTE: Table WORK.SUMMARIZED created, with 180 rows and 5 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           37:43.47
+      cpu time            24:41.87
+      
+
+NOTE: Table WORK.INFLATE_MONTHS has been dropped.
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: Table WORK.TRUE_NS created, with 180 rows and 3 columns.
+
+NOTE: Table OUT.KPMA_LAB_RATES created, with 180 rows and 5 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.01 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 180 observations read from the data set OUT.KPMA_LAB_RATES.
+NOTE: The data set OUT.KPMA_LAB_RATES has 180 observations and 6 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+15827      
+15828      %get_rates(startyr  = &start_year
+15829                , endyr   = &end_year
+15830                , inset   = &_vdw_social_hx
+15831                , datevar = contact_date
+15832                , incvar  = incomplete_emr
+15833                , outset  = out.&_siteabbr._emr_rates
+15834                ) ;
+
+NOTE: The data set WORK.INFLATE_MONTHS has 180 observations and 4 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+NOTE: At least one nonessential grouping column reference has been removed from a GROUP BY's reference list.
+NOTE: The execution of this query involves performing one or more Cartesian product joins that can not be optimized.
+NOTE: SAS threaded sort was used.
+9 The SAS System                                                                                                      08:35 Sunday, September 13, 2015
+
+NOTE: Table WORK.SUMMARIZED created, with 180 rows and 5 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           6:38.24
+      cpu time            4:35.62
+      
+
+NOTE: Table WORK.INFLATE_MONTHS has been dropped.
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: Table WORK.TRUE_NS created, with 180 rows and 3 columns.
+
+NOTE: Table OUT.KPMA_EMR_RATES created, with 180 rows and 5 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.01 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 180 observations read from the data set OUT.KPMA_EMR_RATES.
+NOTE: The data set OUT.KPMA_EMR_RATES has 180 observations and 6 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+15835      
+15836      
+15837      
+15838      
+15839      
+15840      GOPTIONS NOACCESSIBLE;
+15841      %LET _CLIENTTASKLABEL=;
+15842      %LET _CLIENTPROJECTPATH=;
+15843      %LET _CLIENTPROJECTNAME=;
+15844      %LET _SASPROGRAMFILE=;
+15845      
+15846      ;*';*";*/;quit;run;
+15847      ODS _ALL_ CLOSE;
+15848      
+15849      
+15850      QUIT; RUN;
+15851      

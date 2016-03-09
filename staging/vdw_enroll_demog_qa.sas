@@ -9,9 +9,16 @@
 * Does comprehensive QA checks for the HMORN VDW's Enrollment & Demographics files.
 *
 * Please see the workplan found here:
-* https://appliedresearch.cancer.gov/crnportal/data-resources/vdw/quality-assurance/qa-programs/2012-qa/enroll-demog-workplan
+* https://www.hcsrn.org/share/page/site/VDW/wiki-page?title=Enroll-Demog-Lang%20QA%20for%20HCSRN%202016%20Annual%20Meeting
 *
 *********************************************/
+
+/*
+
+  TODO:
+    - integrate dec -> jan enrollee count * insurance type
+
+*/
 
 /********************************************
 *         UPDATE LOG
@@ -56,14 +63,15 @@ libname _all_ clear ;
 %let skip_graphs = true ;
 %let skip_graphs = false ;
 
+* Please set start_year to your earliest date of enrollment data. ;
+%let start_year = 1988 ;
+%let end_year = %sysfunc(date(), year4.) ;
+
 * ======================== end edit section ======================== ;
 * ======================== end edit section ======================== ;
 * ======================== end edit section ======================== ;
 
 %include vdw_macs ;
-
-%let start_year = 2000 ;
-%let end_year = %sysfunc(date(), year4.) ;
 
 * Test program--replaces real enroll/demog with deformed versions. ;
 * %include "//groups/data/CTRHS/Crn/voc/enrollment/test_tier1_qa.sas" ;
@@ -440,6 +448,8 @@ quit ;
 
   %prepCorrData(in=tmpcorr(keep = wt flg_:), out=&outcorr) ;
 
+  %removedset(dset = tmpcorr) ;
+
   proc sql ;
     * Check denominator vars for bad combos of X and not-X ;
     create table xcounts as
@@ -495,6 +505,8 @@ quit ;
       ;
     %end ;
 
+    drop table enroll_mrns ;
+
     insert into results (description, qa_macro, detail_dset, num_bad, percent_bad, result)
         values ("MRNs in enrollment found in demog?", '%enroll_tier_one', "to_stay.enroll_mrns_not_in_demog",  &num_bad, &percent_bad, "&mrn_result")
     ;
@@ -517,7 +529,7 @@ quit ;
     ;
 
     %if &sqlobs > 0 %then %do i = 1 %to 10 ;
-      %put ERROR: IN QA ENROLL_TIEr_OnE--found these unexpected checks: &unexpected_problems ;
+      %put ERROR: IN QA ENROLL_TIER_ONE--found these unexpected checks: &unexpected_problems ;
     %end ;
 
     create table enroll_rbr_checks as
@@ -565,7 +577,45 @@ quit ;
       values ('Do enrollment periods overlap?', '%enroll_tier_one', 'to_stay.overlapping_periods', 0, 0, 'pass')
       ;
     %end ;
+
+    alter table periods drop rid ;
   quit ;
+
+  * Now produce descriptives on enrollment lengths. ;
+  * Step 1--close up any gaps shorter than 92 days (intention is 3 months). ;
+  %collapseperiods(lib     = work
+                , dset     = periods
+                , daystol  = 92
+                , recstart = enr_start
+                , recend   = enr_end
+                , outset   = periods
+                ) ;
+
+  * Step 2--calculate the duration of each period. ;
+  data periods ;
+    set periods ;
+    duration_in_months = (enr_end - enr_start) / 30 ;
+    label duration_in_months = 'No. of 30-day months in this period' ;
+  run ;
+
+  * Step 3--output stats on the distribution. ;
+  proc summary data = periods n min p10 p25 p50 mean p75 p90 max ;
+    var duration_in_months ;
+    output out = to_go.&_siteabbr._enroll_duration_stats
+      n     = duration_n
+      min   = duration_min
+      p10   = duration_p10
+      p25   = duration_p25
+      p50   = duration_p50
+      mean  = duration_mean
+      p75   = duration_p75
+      p90   = duration_p90
+      max   = duration_max
+      std   = duration_std
+    ;
+  run ;
+
+  %removedset(dset = periods) ;
 
 %mend enroll_tier_one ;
 
@@ -665,7 +715,7 @@ quit ;
     end ;
     drop num_dupes ;
   run ;
-
+  %removedset(dset = demog_mrns) ;
   proc sql ;
     reset noprint ;
 
@@ -898,6 +948,8 @@ quit ;
     on   g.mrn = d.mrn
     ;
 
+    drop table gnu ;
+
     %local vlist ;
     %let vlist = year
             , agegroup
@@ -942,45 +994,48 @@ quit ;
     order by &vlist
     ;
 
-    proc datasets nolist library = to_stay ;
-      modify denoms ;
-        label
-          year                  = "Year of Enrollment"
-          agegroup              = "Age Group"
-          gender                = "Gender of Enrollee"
-          race                  = "Race of Enrollee"
-          hispanic              = "Enrollee is Hispanic?"
-          needs_interpreter     = "Enrollee Needs an Interpreter?"
-          drugcov               = "Drug Coverage"
-          incomplete_outpt_rx   = "Is there a known reason why capture of OUTPATIENT RX FILLS should be incomplete?"
-          incomplete_outpt_enc  = "Is there a known reason why capture of OUTPATIENT ENCOUNTERS should be incomplete?"
-          incomplete_inpt_enc   = "Is there a known reason why capture of INPATIENT ENCOUNTERS should be incomplete?"
-          incomplete_emr        = "Is there a known reason why capture of EMR data should be incomplete?"
-          incomplete_lab        = "Is there a known reason why capture of LAB RESULTS should be incomplete?"
-          incomplete_tumor      = "Is there a known reason why capture of TUMOR DATA should be incomplete?"
-          enrollment_basis      = "What is the reason this person is in the enrollment file?"
-          ins_commercial        = "Has commercial insurance?"
-          ins_highdeductible    = "Has high-deductible insurance?"
-          ins_medicaid          = "Has medicaid coverage?"
-          ins_medicare          = "Has any type of medicare insurance?"
-          ins_medicare_a        = "Has medicare part A insurance?"
-          ins_medicare_b        = "Has medicare part B insurance?"
-          ins_medicare_c        = "Has medicare part C insurance?"
-          ins_medicare_d        = "Has medicare part D insurance?"
-          ins_other,            = "Has 'other' insurance?"
-          ins_privatepay        = "Has private pay insurance?"
-          ins_selffunded        = "Has self-funded insurance?"
-          ins_statesubsidized   = "Has state-subsizided insurance?"
-          plan_hmo              = "Has HMO plan coverage?"
-          plan_indemnity        = "Has Indemnity coverage?"
-          plan_pos              = "Has Point-of-Service coverage?"
-          plan_ppo              = "Has Preferred-Provider-Organization coverage?"
-          pcp_probably_valid    = "Has a valid Primary Care Physician assignment?"
-          pcc_probably_valid    = "Has a valid Primary Care Clinic assignment?"
-        ;
-    quit ;
+    drop table with_demog ;
 
   quit ;
+
+  proc datasets nolist library = to_stay ;
+    modify denoms ;
+      label
+        year                  = "Year of Enrollment"
+        agegroup              = "Age Group"
+        gender                = "Gender of Enrollee"
+        race                  = "Race of Enrollee"
+        hispanic              = "Enrollee is Hispanic?"
+        needs_interpreter     = "Enrollee Needs an Interpreter?"
+        drugcov               = "Drug Coverage"
+        incomplete_outpt_rx   = "Is there a known reason why capture of OUTPATIENT RX FILLS should be incomplete?"
+        incomplete_outpt_enc  = "Is there a known reason why capture of OUTPATIENT ENCOUNTERS should be incomplete?"
+        incomplete_inpt_enc   = "Is there a known reason why capture of INPATIENT ENCOUNTERS should be incomplete?"
+        incomplete_emr        = "Is there a known reason why capture of EMR data should be incomplete?"
+        incomplete_lab        = "Is there a known reason why capture of LAB RESULTS should be incomplete?"
+        incomplete_tumor      = "Is there a known reason why capture of TUMOR DATA should be incomplete?"
+        enrollment_basis      = "What is the reason this person is in the enrollment file?"
+        ins_commercial        = "Has commercial insurance?"
+        ins_highdeductible    = "Has high-deductible insurance?"
+        ins_medicaid          = "Has medicaid coverage?"
+        ins_medicare          = "Has any type of medicare insurance?"
+        ins_medicare_a        = "Has medicare part A insurance?"
+        ins_medicare_b        = "Has medicare part B insurance?"
+        ins_medicare_c        = "Has medicare part C insurance?"
+        ins_medicare_d        = "Has medicare part D insurance?"
+        ins_other,            = "Has 'other' insurance?"
+        ins_privatepay        = "Has private pay insurance?"
+        ins_selffunded        = "Has self-funded insurance?"
+        ins_statesubsidized   = "Has state-subsizided insurance?"
+        plan_hmo              = "Has HMO plan coverage?"
+        plan_indemnity        = "Has Indemnity coverage?"
+        plan_pos              = "Has Point-of-Service coverage?"
+        plan_ppo              = "Has Preferred-Provider-Organization coverage?"
+        pcp_probably_valid    = "Has a valid Primary Care Physician assignment?"
+        pcc_probably_valid    = "Has a valid Primary Care Clinic assignment?"
+      ;
+  quit ;
+
 %mend make_denoms ;
 
 
@@ -1231,11 +1286,20 @@ quit ;
 %fake_language ;
 %demog_tier_one ;
 %lang_tier_one; *pjh19401;
+
 /*
 */
 
 %enroll_tier_one ;
 %make_denoms ;
+
+data to_stay.demog_checks ;
+  set demog_checks ;
+run ;
+
+data to_stay.erbr_checks ;
+  set erbr_checks ;
+run ;
 
 
 data to_go.&_siteabbr._tier_one_results ;

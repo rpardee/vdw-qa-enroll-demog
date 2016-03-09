@@ -10,6 +10,8 @@
 *********************************************/
 
 %include "\\home\pardre1\SAS\Scripts\remoteactivate.sas" ;
+%let GHRIDW_ROOT = //ghcmaster/ghri/warehouse ;
+%include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/standard_macros.sas" ;
 
 options
   linesize  = 150
@@ -29,9 +31,6 @@ libname col "\\groups\data\CTRHS\Crn\voc\enrollment\programs\qa_results" ;
 %include "//ghrisas/Warehouse/Sasdata/CRN_VDW/lib/StdVars.sas" ;
 %include "\\groups\data\CTRHS\Crn\voc\enrollment\programs\staging\qa_formats.sas" ;
 
-/* %include "//ghrisas/Warehouse/Sasdata/CRN_VDW/lib/StdVars.sas" ;
-%include vdw_macs ;
- */
 
 proc format cntlout = sites ;
   value $s (default = 22)
@@ -214,6 +213,8 @@ quit ;
 
   %stack_datasets(inlib = raw, nom = flagcorr, outlib = col) ;
 
+  %stack_datasets(inlib = raw, nom = enroll_duration_stats, outlib = col) ;
+
   proc sort data = tier_one_results(drop = detail_dset num_bad) ;
     by qa_macro description site ;
   run ;
@@ -295,7 +296,6 @@ quit ;
     id site ;
     idlabel sitename ;
   run ;
-
 %mend do_results ;
 
 %macro do_vars() ;
@@ -368,7 +368,6 @@ quit ;
     variables can take any of several values.
     for any combos of site|var_name|year where value = Y that dont occur in the dset, add them in with count and pct of 0
   */
-
 %mend do_freqs ;
 
 %macro misc_wrangling() ;
@@ -388,9 +387,7 @@ quit ;
     group by site, gender
     ;
   quit ;
-
 %mend misc_wrangling ;
-
 
 %macro regen() ;
   %do_results ;
@@ -414,7 +411,6 @@ quit ;
   quit ;
 
   %misc_wrangling ;
-
 %mend regen ;
 
 %macro report() ;
@@ -529,13 +525,26 @@ quit ;
   title2 "Person/Years Per Organization" ;
   proc sql ;
     create table tpy as
-    select site_name label = "HMORN Site"
+    select site, site_name label = "HMORN Site"
         , sum(coalesce(total_count, high_count)) * 1000 as person_years format = comma12.0 label = "Total no. of person/years"
     from ax
-    group by site_name
+    group by site, site_name
     ;
     * select * from tpy ;
+    create table py_dur as
+    select t.*
+          , duration_p25
+          , duration_p50
+          , duration_p75
+    from  tpy as t LEFT JOIN
+          col.enroll_duration_stats as e
+    on    t.site = e.site
+    ;
   quit ;
+
+  data col.py_dur ;
+    set py_dur ;
+  run ;
 
   proc print data = tpy label ;
     id site_name ;
@@ -546,6 +555,21 @@ quit ;
   proc sgplot data = tpy ;
     dot site_name / response = person_years categoryorder = respdesc ;
     xaxis grid ;
+  run ;
+
+  title2 "Breadth vs Depth: Total Person/Years by Duration of Typical Enrollment Period" ;
+  ods graphics / imagename = "py_x_duration" ;
+  proc sgplot data = py_dur ;
+    scatter x = person_years y = duration_p50 / yerrorlower = duration_p25
+                                                yerrorupper = duration_p75
+                                                errorbarattrs = (color = lightyellow thickness = .7mm)
+                                                datalabel = site
+                                                datalabelattrs = (size = 2mm)
+                                                markerattrs = (symbol = circlefilled size = 3mm)
+                                                ;
+    xaxis grid ; * values = (&earliest to "31dec2010"d by month ) ;
+    yaxis grid label = "Typical Enrollment Duration in months (median + 25th/75th percentiles)" ;
+    where duration_p50 ;
   run ;
 
   title2 "Enrollment Variables (data between &start_year and &end_year only)" ;
@@ -670,7 +694,6 @@ quit ;
     where race_type = 'uncommon' ;
     format value $race. gender $gen. ;
   run ;
-
 %mend report_demog ;
 
 %macro report_correlations(inset = col.flagcorr) ;
@@ -723,11 +746,12 @@ quit ;
   run;
 
   options byline ;
-
 %mend report_correlations ;
 
 %regen ;
 * endsas ;
+
+ods listing close ;
 
 options orientation = landscape ;
 ods graphics / height = 6in width = 10in  maxlegendarea = 25 ;
@@ -761,6 +785,9 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
     where libname = 'RAW' and memname like '%_TIER_ONE_RESULTS'
     ;
 
+    * For now we dummy out CHI ;
+    insert into submitting_sites (site) values ('Catholic Health Initiatives') ;
+
     create table col.submitting_sites as
     select * from submitting_sites
     ;
@@ -770,7 +797,7 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
   ods graphics / imagename = "submitting_sites" ;
   proc sgplot data = submitting_sites ;
     dot site / response = date_submitted ;
-    xaxis grid values = ("01-feb-2014"d to "01-mar-2015"d by month) ;
+    xaxis grid ; * values = ("01-feb-2014"d to "01-mar-2015"d by month) ;
   run ;
 
   proc sql number ;
