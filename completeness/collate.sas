@@ -9,7 +9,53 @@
 * Mashes submitted data together for reporting.
 *********************************************/
 
-%include "h:/SAS/Scripts/remoteactivate.sas" ;
+* Bringing in the contents of remoteactivate.sas so I can specify I want to hit ROC3LW, which has sas v9.4 installed. ;
+
+proc sql noprint ;
+   select trim(XPath)
+   into :program_file separated by ' '
+   from dictionary.extfiles
+   where fileref like "#LN00005" ;
+   ;
+  select trim(reverse(substr(reverse(xpath), index(reverse(xpath), "\"))))
+  into :program_folder
+  from dictionary.extfiles
+  where fileref = '#LN00005'
+  ;
+quit ;
+
+footnote "Program file: &program_file " ;
+
+** I want this lib set even in my local session. ;
+libname s "\\home\pardre1\workingdata" ;
+
+%let ROC3LW=10.1.179.66;
+options COMAMID=TCP REMOTE=ROC3LW;
+
+%include '\\home\pardre1\SAS\login.sas';
+filename ghridwip "&GHRIDW_ROOT\remote\tcpwinbatch.scr" ;
+signon ghridwip ;
+
+** Move the program file macro var over to the remote session. ;
+%syslput program_file   = &program_file ;
+%syslput username       = &username ;
+%syslput password       = &password ;
+* %syslput td_goo         = &td_goo ;
+
+rsubmit ;
+
+** Put the filename in the comment field for the SAS process manager. ;
+%make_spm_comment(&program_file) ;
+
+***********************;
+** Set the typical libnames... ;
+** SAS recommends *against* UNCs (!). ;
+%let DWROOT = &GHRIDW_ROOT\sasdata\ ;
+
+libname chsid     "&DWROOT.CHSID" ;
+libname demogs    "&DWROOT.Consumer Demographics" ;
+libname baseline  "&DWROOT.Baseline" ;
+libname VDW       "&DWROOT.CRN_VDW" ;
 
 options
   linesize  = 150
@@ -26,27 +72,30 @@ libname col "\\groups\data\CTRHS\Crn\voc\enrollment\programs\completeness\combin
 
 proc format cntlout = sites ;
   value $s (default = 22)
-    /* 'HPRF' = 'HealthPartners' */
-    /* 'LCF'  = 'Lovelace' */
-    /* "FAL"  = "Fallon Community Health Plan" */
-    /* "LHS"  = "Lovelace Health Systems" */
-    'HPHC' = 'Harvard'
     'HPI'  = 'HealthPartners'
     'MCRF' = 'Marshfield'
-    'SWH'  = 'Baylor Scott & White'
-    'HFHS' = 'Henry Ford'
     'GHS'  = 'Geisinger'
     'GHC'  = 'Group Health'
-    'PAMF' = 'Palo Alto'
     'EIRH' = 'Essentia'
     'KPCO' = 'KP Colorado'
     'KPNW' = 'KP Northwest'
-    'KPGA' = 'KP Georgia'
     "KPNC" = "KP Northern California"
-    "KPSC" = "KP Southern California"
     "KPH"  = "KP Hawaii"
-    "FA"   = "Fallon Community HP"
     "KPMA" = "KP Mid-Atlantic"
+    other  = "gotohell"
+  ;
+
+  value $maybe (default = 22)
+    "FA"   = "Fallon Community HP" /* maybe--check */
+    'PAMF' = 'Palo Alto' /* maybe--check */
+  ;
+  value $go2hell (default = 22)
+    'HPHC' = 'Harvard'
+    'SWH'  = 'Baylor Scott & White'
+    'HFHS' = 'Henry Ford'
+    'KPGA' = 'KP Georgia'
+    "KPSC" = "KP Southern California"
+
   ;
 quit ;
 
@@ -71,80 +120,44 @@ quit ;
   quit ;
 %mend collate ;
 
-%collate ;
-* The SGPANEL call on tumor data was causing a segfault on PC sas.  Unix SAS does not seem to have the problem. ;
-%include '\\home\pardre1\SAS\Scripts\sasunxlogon.sas' ;
-%include "&GHRIDW_ROOT/remote/RemoteStartUnix.sas" ;
-rsubmit ;
-* This dattrmap feature was apparently introduced in 9.3--not available on totoro right now. Sad face. ;
+options extendobscounter = no ;
+* %collate ;
+
 data line_colors ;
   input
     @1    id         $char2.
     @5    value       $char24.
     @31   linecolor   $char8.
   ;
+  markercolor = linecolor ;
+  markersymbol = 'circle' ;
+  linepattern = 'solid' ;
 datalines ;
 lc  Suspected Incomplete      CX4FA3E7
 lc  Not Suspected Incomplete  CXFFD472
-lc  Not Implmented            CXB4BDEA
+lc  Not Implemented           CXB4BDEA
 lc  Unknown                   CXFF0000
 run ;
 
-proc format cntlout = sites ;
-  value $s (default = 22)
-    /* 'HPRF' = 'HealthPartners' */
-    /* 'LCF'  = 'Lovelace' */
-    /* "FAL"  = "Fallon Community Health Plan" */
-    /* "LHS"  = "Lovelace Health Systems" */
-    'HPHC' = 'Harvard'
-    'HPI'  = 'HealthPartners'
-    'MCRF' = 'Marshfield'
-    'SWH'  = 'Baylor Scott & White'
-    'HFHS' = 'Henry Ford'
-    'GHS'  = 'Geisinger'
-    'GHC'  = 'Group Health'
-    'PAMF' = 'Palo Alto'
-    'EIRH' = 'Essentia'
-    'KPCO' = 'KP Colorado'
-    'KPNW' = 'KP Northwest'
-    'KPGA' = 'KP Georgia'
-    "KPNC" = "KP Northern California"
-    "KPSC" = "KP Southern California"
-    "KPH"  = "KP Hawaii"
-    "FA"   = "Fallon Community HP"
-    "KPMA" = "KP Mid-Atlantic"
-  ;
-quit ;
-
-libname col "~/sdrc/data/enroll_complete" ;
-
-proc upload data = col.emr_rates                out = col.emr_rates ;
-proc upload data = col.lab_rates                out = col.lab_rates ;
-proc upload data = col.tumor_rates              out = col.tumor_rates ;
-proc upload data = col.rx_rates                 out = col.rx_rates ;
-proc upload data = col.ute_in_rates_by_enctype  out = col.ute_in_rates_by_enctype ;
-proc upload data = col.ute_out_rates_by_enctype out = col.ute_out_rates_by_enctype ;
-proc upload data = col.submitting_sites         out = col.submitting_sites ;
-run ;
-
-%macro plot(inset = col.rx_rates, incvar = incomplete_outpt_rx, tit = %str(Outpatient Pharmacy), extr = ) ;
+%macro plot(inset = col.rx_rates, incvar = incomplete_outpt_rx, tit = %str(Outpatient Pharmacy), extr = , rows = 3) ;
 
   proc sort data = &inset out = gnu ;
     by site first_day &incvar ;
-    where n gt 200 and rate gt 0 ;
+    where n gt 200 /* and rate gt 0 */ ;
   run ;
 
   ods graphics / imagename = "&incvar" ;
 
   title1 "&tit" ;
 
-  proc sgpanel data = gnu /* dattrmap = line_colors */ ;
-    panelby site / novarname columns = 4 rows = 4 ;
+  proc sgpanel data = gnu dattrmap = line_colors ;
+    panelby site / novarname columns = 4 rows = &rows ;
     /* options I tried to get out of the segfault when doing tumor: smooth = .2  interpolation = linear */
-    loess x = first_day y = rate / group = &incvar lineattrs=(pattern = solid) /* attrid = lc */ ;
+    loess x = first_day y = rate / group = &incvar attrid = lc ;
     format site $s. ;
     rowaxis grid label = "Records per Enrollee" &extr ;
     colaxis grid display = (nolabel) ;
+    where put(site, $s.) ne 'gotohell' ;
   run ;
 %mend plot ;
 
@@ -164,14 +177,30 @@ run ;
     yaxis grid label = "Records per Enrollee" ;
     by site ;
     format site $s. ;
+    where put(site, $s.) ne 'gotohell' ;
   run ;
 %mend nonpanel_plot ;
+
+* Calculate per-site & date rates of all outpatient visits ;
+proc sql ;
+  create table col.summed_outpt_rates as
+  select site, first_day, incomplete_outpt_enc
+      , sum(num_events) as num_events
+      , min(n) as n
+      , sum(num_events) / min(n) as rate
+  from col.ute_out_rates_by_enctype
+  where extra ne 'IP'
+  group by site, first_day, incomplete_outpt_enc
+  ;
+quit ;
+
+* endsas ;
 
 options orientation = landscape ;
 ods graphics / height = 6in width = 10in ;
 
 %let out_folder = \\groups\data\ctrhs\crn\voc\enrollment\reports_presentations\capture_rate_output\ ;
-%let out_folder = %sysfunc(pathname(col)) ;
+* %let out_folder = %sysfunc(pathname(col)) ;
 
 ods html path = "&out_folder" (URL=NONE)
          body   = "collate.html"
@@ -196,8 +225,10 @@ ods html path = "&out_folder" (URL=NONE)
 
   %plot(inset = col.lab_rates  , incvar = incomplete_lab     , tit = %str(Lab Results)                ) ;
   %plot(inset = col.emr_rates  , incvar = incomplete_emr     , tit = %str(EMR Data (Social History))  ) ;
-  %plot(inset = col.tumor_rates, incvar = incomplete_tumor   , tit = %str(Tumor)                      ) ;
+  %plot(inset = col.tumor_rates, incvar = incomplete_tumor   , tit = %str(Tumor)                      , extr = %str(max = 0.0015), rows = 3) ;
+
   %plot(inset = col.ute_out_rates_by_enctype (where = (extra = 'AV')) , incvar = incomplete_outpt_enc , tit = %str(Ambulatory Visits), extr = %str(max = 2)) ;
+  %plot(inset = col.summed_outpt_rates, incvar = incomplete_outpt_enc , tit = %str(All Non-Inpatient Visits)) ;
   * %nonpanel_plot(inset = col.ute_out_rates_by_enctype (where = (extra = 'AV' and site eq 'PAMF')) , incvar = incomplete_outpt_enc     , tit = %str(Ambulatory Visits)) ;
   %plot(inset = col.ute_in_rates_by_enctype  (where = (extra = 'IP')) , incvar = incomplete_inpt_enc  , tit = %str(Inpatient Stays), extr = %str(max = .020)) ;
   * %nonpanel_plot(inset = col.ute_in_rates_by_enctype  (where = (extra = 'IP' and site eq 'PAMF')) , incvar = incomplete_inpt_enc     , tit = %str(Inpatient Stays)) ;
@@ -210,8 +241,4 @@ ods html path = "&out_folder" (URL=NONE)
 run ;
 
 ods _all_ close ;
-
-** log off unix ;
-endrsubmit ;
-signoff sasunix.spawner ;
 

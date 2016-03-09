@@ -785,6 +785,9 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
     where libname = 'RAW' and memname like '%_TIER_ONE_RESULTS'
     ;
 
+    * For now we dummy out CHI ;
+    insert into submitting_sites (site) values ('Catholic Health Initiatives') ;
+
     create table col.submitting_sites as
     select * from submitting_sites
     ;
