@@ -9,7 +9,7 @@
 * Mashes submitted data together for reporting.
 *********************************************/
 
-%include "h:/SAS/Scripts/remoteactivate.sas" ;
+* %include "h:/SAS/Scripts/remoteactivate.sas" ;
 * Bringing in the contents of remoteactivate.sas so I can specify I want to hit ROC3LW, which has sas v9.4 installed. ;
 
 proc sql noprint ;
@@ -72,6 +72,25 @@ libname sub "\\groups\data\CTRHS\Crn\voc\enrollment\programs\completeness\submit
 libname col "\\groups\data\CTRHS\Crn\voc\enrollment\programs\completeness\combined" ;
 
 proc format cntlout = sites ;
+  value $orig (default = 22)
+    'HPI'  = 'HealthPartners'
+    'MCRF' = 'Marshfield'
+    'GHS'  = 'Geisinger'
+    'GHC'  = 'Group Health'
+    'EIRH' = 'Essentia'
+    'KPCO' = 'KP Colorado'
+    'KPNW' = 'KP Northwest'
+    "KPNC" = "KP Northern California"
+    "KPH"  = "KP Hawaii"
+    "KPMA" = "KP Mid-Atlantic"
+    "FA"   = "Fallon Community HP" /* maybe--check */
+    'PAMF' = 'Palo Alto' /* maybe--check */
+    'HPHC' = 'Harvard'
+    'SWH'  = 'Baylor Scott & White'
+    'HFHS' = 'Henry Ford'
+    'KPGA' = 'KP Georgia'
+    "KPSC" = "KP Southern California"
+  ;
   value $s (default = 22)
     'HPI'  = 'HealthPartners'
     'MCRF' = 'Marshfield'
@@ -155,10 +174,11 @@ run ;
     panelby site / novarname columns = 4 rows = &rows ;
     /* options I tried to get out of the segfault when doing tumor: smooth = .2  interpolation = linear */
     loess x = first_day y = rate / group = &incvar attrid = lc ;
-    format site $s. ;
+    * format site $s. ;
+    format site $orig. ;
     rowaxis grid label = "Records per Enrollee" &extr ;
     colaxis grid display = (nolabel) ;
-    where put(site, $s.) ne 'gotohell' ;
+    * where put(site, $s.) ne 'gotohell' ;
   run ;
 %mend plot ;
 
@@ -177,14 +197,12 @@ run ;
     xaxis grid display = (nolabel) ; * values = (&earliest to "31dec2010"d by month ) ;
     yaxis grid label = "Records per Enrollee" ;
     by site ;
-    format site $s. ;
-    where put(site, $s.) ne 'gotohell' ;
+    * format site $s. ;
+    format site $orig. ;
+    * where put(site, $s.) ne 'gotohell' ;
   run ;
 %mend nonpanel_plot ;
 
-<<<<<<< HEAD
-%collate ;
-=======
 * Calculate per-site & date rates of all outpatient visits ;
 proc sql ;
   create table col.summed_outpt_rates as
@@ -197,8 +215,6 @@ proc sql ;
   group by site, first_day, incomplete_outpt_enc
   ;
 quit ;
-
-* endsas ;
 
 options orientation = landscape ;
 ods graphics / height = 6in width = 10in ;
@@ -216,12 +232,12 @@ ods html path = "&out_folder" (URL=NONE)
 
   footnote1 " " ;
 
-  title2 "Sites submitting QA Results" ;
-  ods graphics / imagename = "submitting_sites" ;
-  proc sgplot data = col.submitting_sites ;
-    dot site / response = date_submitted ;
-    xaxis grid min = '01-aug-2015'd ;
-  run ;
+  * title2 "Sites submitting QA Results" ;
+  * ods graphics / imagename = "submitting_sites" ;
+  * proc sgplot data = col.submitting_sites ;
+  *   dot site / response = date_submitted ;
+  *   xaxis grid min = '01-aug-2015'd ;
+  * run ;
 
   options mprint ;
 
