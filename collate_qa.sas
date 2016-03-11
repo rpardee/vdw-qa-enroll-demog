@@ -567,7 +567,7 @@ quit ;
                                                 datalabelattrs = (size = 2mm)
                                                 markerattrs = (symbol = circlefilled size = 3mm)
                                                 ;
-    xaxis grid ; * values = (&earliest to "31dec2010"d by month ) ;
+    xaxis grid type = log label = "Total no. person-years (log scale)"; * values = (&earliest to "31dec2010"d by month ) ;
     yaxis grid label = "Typical Enrollment Duration in months (median + 25th/75th percentiles)" ;
     where duration_p50 ;
   run ;
@@ -786,7 +786,7 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
     ;
 
     * For now we dummy out CHI ;
-    insert into submitting_sites (site) values ('Catholic Health Initiatives') ;
+    insert into submitting_sites (site) values ('Catholic Health Init') ;
 
     create table col.submitting_sites as
     select * from submitting_sites
