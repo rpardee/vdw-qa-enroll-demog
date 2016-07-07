@@ -22,7 +22,8 @@ options
 ;
 
 * Output lib--change this to something that works at your site ;
-libname s "//ghrisas/SASUser/pardre1" ;
+libname s "//home/pardre1/workingdata/" ;
+
 
 * Put your stdvars ref here: ;
 %include "//ghrisas/Warehouse/Sasdata/CRN_VDW/lib/StdVars_Teradata.sas" ;
@@ -98,38 +99,55 @@ libname s "//ghrisas/SASUser/pardre1" ;
     proc sort nodupkey data = &outset ;
       by mrn ;
     run ;
-
   %mend get_mo ;
 
-  %get_mo(15-dec-2014, dec_2014) ;
-  %get_mo(15-jan-2015, jan_2015) ;
+  %get_mo(15-dec-2013, dec_2013) ;
+  %get_mo(15-jan-2014, jan_2014) ;
 
   data &outset ;
     merge
-      dec_2014 (rename = (ins_type = type_2014))
-      jan_2015 (rename = (ins_type = type_2015))
+      dec_2013 (rename = (ins_type = type_2013))
+      jan_2014 (rename = (ins_type = type_2014))
     ;
     by mrn ;
     label
-      type_2014 = "Insurance Type in December 2014"
-      type_2015 = "Insurance Type in January 2015"
+      type_2013 = "Insurance Type in December 2013"
+      type_2014 = "Insurance Type in January 2014"
     ;
   run ;
 
   proc freq data = &outset ;
-    tables type_2014 * type_2015 / missing format = comma9.0 out = s.drop_me ;
+    tables type_2013 * type_2014 / missing format = comma9.0 out = s.drop_me ;
     format type_: it. ;
-    * where not (type_2013 = 4 or type_2014 = 4) ;
+    * where not (type_2013 = 4 or type_2013 = 4) ;
   run ;
 
   * proc freq data = &outset order = freq ;
-  *   tables jan_2014_combos * type_2014 / list missing format = comma9.0 ;
+  *   tables jan_2013_combos * type_2013 / list missing format = comma9.0 ;
   *   format type_: it. ;
   * run ;
 
 %mend probe_diffs ;
 
+options orientation = landscape ;
+
+* %let out_folder = //groups/data/CTRHS/Crn/voc/enrollment/programs/ ;
+%let out_folder = %sysfunc(pathname(s)) ;
+
+ods html path = "&out_folder" (URL=NONE)
+         body   = "aca_probe.html"
+         (title = "aca_probe output")
+          ;
+
+
 %probe_diffs(outset = aca_diffs) ;
+
+
+run ;
+
+ods _all_ close ;
+
+
 
 options mprint ;
 /*

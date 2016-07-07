@@ -12,18 +12,7 @@
 
 * ============== BEGIN EDIT SECTION ========================= ;
 * Please comment this include statement out if Roy forgets to--thanks/sorry! ;
-* %include "\\home\pardre1\SAS\Scripts\remoteactivate.sas" ;
-
-%let ROC3W8=10.1.179.36;
-options COMAMID=TCP REMOTE=ROC3W8;
-
-* your include file should have %LET statements for your ;
-* userid and password ;
-%include '\\home\pardre1\SAS\login.sas';
-filename ROC3W8'\\ghcmaster\ghri\warehouse\remote\tcpwinbatch.scr';
-signon ROC3W8;
-
-options obs = 2000 ;
+%include "\\home\pardre1\SAS\Scripts\remoteactivate.sas" ;
 
 options
   linesize  = 150
@@ -45,7 +34,7 @@ options
 
 * Years over which you want rate data ;
 %let start_year = 2000 ;
-%let end_year   = 2014 ; * <-- best to use last complete year ;
+%let end_year   = 2015 ; * <-- best to use last complete year ;
 
 /*
 
@@ -75,7 +64,7 @@ options
 libname mylib teradata
   user              = "&clean_username@LDAP"
   password          = "&password"
-  server            = "EDW_PROD1"
+  server            = "&td_prod"
   schema            = "%sysget(username)"
   multi_datasrc_opt = in_clause
   connection        = global
@@ -83,6 +72,8 @@ libname mylib teradata
 
 * %let tmplib = work ;
 %let tmplib = mylib ;
+
+%let _vdw_enroll = mylib.unholy_union ;
 
 * ============== END EDIT SECTION ========================= ;
 * Where you want the output datasets. ;
@@ -96,6 +87,7 @@ proc format ;
     "K" = "Suspected Incomplete"
     "N" = "Not Suspected Incomplete"
     "X" = "Not Implemented"
+    "M" = "Molina"
   other = "Unknown"
   ;
 quit ;
@@ -120,6 +112,7 @@ quit ;
 %macro get_rates(startyr =
               , endyr     =
               , inset     =               /* the substantive dset that holds the type of data whose capture is described in incvar */
+              , extrawh   =               /* any extra WHERE you want to add to the main query */
               , datevar   =               /* name of the relevant date var (adate, rxdate, etc.) */
               , incvar    =               /* name of the incomplete_* var we are testing. */
               , outset    =               /* what to call the output dataset of rates. */
@@ -138,34 +131,62 @@ quit ;
           , &extra_var   as extra
           , count(distinct e.mrn) as n
           , sum(case when r.mrn is null then 0 else 1 end) as num_events
-      from  &tmplib..inflate_months as i LEFT JOIN
-            &enrlset as e
-      on    e.&startvar le i.last_day AND
-            e.&endvar   ge i.first_day LEFT JOIN
-            &inset as r
-      on    e.mrn = r.mrn AND
-            r.&datevar between i.first_day and i.last_day
-      group by 1, 2, 3
-      ;
-  quit ;
+    from  &tmplib..inflate_months as i LEFT JOIN
+          &enrlset as e
+    on    e.&startvar le i.last_day AND
+          e.&endvar   ge i.first_day LEFT JOIN
+          &inset as r
+    on    e.mrn = r.mrn AND
+          r.&datevar between i.first_day and i.last_day
+    &extrawh
+    group by 1, 2, 3
+    ;
 
-  %removedset(dset = &tmplib..inflate_months) ;
-
-  * Correct Ns for runs where we have a substantive "extra" var. ;
-  proc sql ;
-    create table true_ns as
-    select first_day, &incvar, sum(n) as n
+  %if %length(&extra_var) < 3 %then %do ;
+    create table &outset as
+    select *
     from summarized
-    group by first_day, &incvar
+    ;
+  %end ;
+  %else %do ;
+    create table true_denoms as
+    select i.first_day length = 4
+          , e.&incvar
+          , count(distinct e.mrn) as n
+    from  &tmplib..inflate_months as i LEFT JOIN
+          &enrlset as e
+    on    e.&startvar le i.last_day AND
+          e.&endvar   ge i.first_day
+    group by 1, 2
     ;
     create table &outset as
     select s.*, t.n
     from  summarized (drop = n)  as s INNER JOIN
-          true_ns as t
+          true_denoms as t
     on    s.first_day = t.first_day AND
           s.&incvar = t.&incvar
     ;
+  %end ;
   quit ;
+
+  %removedset(dset = &tmplib..inflate_months) ;
+
+  /*
+    THIS DOES NOT WORK PROPERLY.
+    Enrollees that have > 1 type of visit in a month get counted several times
+    in the denominator, suppressing the rates.
+    So really, we should do one pass of nothing but denom counts
+    and one pass of nothing but event counts for anything with a substantive
+    "extra" var.
+    * Correct Ns for runs where we have a substantive "extra" var. ;
+    proc sql ;
+      create table true_ns as
+      select first_day, &incvar, sum(n) as n
+      from summarized
+      group by first_day, &incvar
+      ;
+    quit ;
+  */
 
   data &outset ;
     length &incvar $ 30 ;
@@ -180,8 +201,13 @@ quit ;
       &incvar $30.
     ;
   run ;
+
+  proc sort data = &outset ;
+    by first_day extra &incvar ;
+  run ;
+
 %mend get_rates ;
-/*
+
 %get_rates(startyr  = &start_year
           , endyr   = &end_year
           , inset   = &_vdw_rx
@@ -202,15 +228,6 @@ quit ;
           , endyr     = &end_year
           , inset     = &_vdw_utilization
           , datevar   = adate
-          , incvar    = incomplete_outpt_enc
-          , outset    = out.&_siteabbr._ute_out_rates_by_enctype
-          , extra_var = coalesce(enctype, 'XX')
-          ) ;
-
-%get_rates(startyr    = &start_year
-          , endyr     = &end_year
-          , inset     = &_vdw_utilization
-          , datevar   = adate
           , incvar    = incomplete_inpt_enc
           , outset    = out.&_siteabbr._ute_in_rates_by_enctype
           , extra_var = coalesce(enctype, 'XX')
@@ -223,14 +240,35 @@ quit ;
           , incvar     = incomplete_lab
           , outset     = out.&_siteabbr._lab_rates
           ) ;
- */
+%get_rates(startyr    = &start_year
+          , endyr     = &end_year
+          , inset     = &_vdw_utilization
+          , datevar   = adate
+          , incvar    = incomplete_outpt_enc
+          , outset    = out.&_siteabbr._ute_out_rates_by_enctype
+          , extra_var = coalesce(enctype, 'XX')
+          ) ;
 %get_rates(startyr  = &start_year
           , endyr   = &end_year
-          , inset   = &_vdw_social_hx (where = (gh_source = 'C'))
-          , datevar = contact_date
+          , inset   = &_vdw_vitalsigns
+          , extrawh = %str(AND dsource = 'P')
+          , datevar = measure_date
           , incvar  = incomplete_emr
-          , outset  = out.&_siteabbr._emr_rates
+          , outset  = out.&_siteabbr._emr_v_rates
           ) ;
 
+/*
+* options mprint mlogic ;
 
+* options SASTRACE=',,,d' sastraceloc=saslog;
 
+%get_rates(startyr  = &start_year
+          , endyr   = &end_year
+          , inset   = &_vdw_social_hx
+          , extrawh = %str(AND gh_source = 'C')
+          , datevar = contact_date
+          , incvar  = incomplete_emr
+          , outset  = out.&_siteabbr._emr_s_rates
+          ) ;
+
+*/

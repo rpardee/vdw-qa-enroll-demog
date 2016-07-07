@@ -133,8 +133,12 @@ ods rtf file = "&root./do_not_send/vdw_completeness.rtf" device = sasemf style =
                   , ylab = Lab Results
                   ) ;
     %graph_capture(incvar  = incomplete_emr
-                  , rateset  = out.&_siteabbr._emr_rates
+                  , rateset  = out.&_siteabbr._emr_s_rates
                   , ylab = EMR Data (Social History)
+                  ) ;
+    %graph_capture(incvar  = incomplete_emr
+                  , rateset  = out.&_siteabbr._emr_v_rates
+                  , ylab = EMR Data (Vital Signs)
                   ) ;
 
 run ;

@@ -100,6 +100,7 @@ proc format cntlout = sites ;
     'KPCO' = 'KP Colorado'
     'KPNW' = 'KP Northwest'
     "KPNC" = "KP Northern California"
+    "KPSC" = "KP Southern California"
     "KPH"  = "KP Hawaii"
     "KPMA" = "KP Mid-Atlantic"
     other  = "gotohell"
@@ -115,7 +116,6 @@ proc format cntlout = sites ;
     'HFHS' = 'Henry Ford'
     'KPGA' = 'KP Georgia'
     "KPSC" = "KP Southern California"
-
   ;
 quit ;
 

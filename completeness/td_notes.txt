@@ -1,0 +1,58 @@
+Was going to send this to Larry Scheurich, but query started working.
+
+Conceptually I have 3 basic tables:
+  enrollment: 1 rec per enrollment period w/start/stop dates
+    mrn
+    enr_start
+    enr_end
+    incomplete_outpt_rx (takes values 'K', 'N', 'M')
+
+  reporting_months: 1 rec per month of interest
+    first_day (of the month)
+    last_day (of the month)
+
+  rx_fills: 1 rec per pharmacy fill
+    mrn
+    rxdate
+
+My goal is to calculate, for each month in reporting_month:
+  the number of people enrolled in that month
+  the number of prescriptions enrollees filled in that month
+  by values of incomplete_outpt_rx
+
+My query is:
+
+select reporting_months.first_day
+    , enrollment.incomplete_outpt_rx
+    , count(distinct enrollment.mrn) as n_enrolled
+    , sum(case when rx_fills.mrn is null then 0 else 1 end) as num_fills
+from  pardre1.inflate_months  as reporting_months LEFT JOIN
+      pardre1.unholy_union    as enrollment
+on    e.enr_start  le i.last_day AND
+      e.enr_end    ge i.first_day LEFT JOIN
+      sb_ghri.rx              as rx_fills
+on    e.mrn = r.mrn AND
+      r.rxdate between i.first_day and i.last_day
+group by 1, 2
+order by 1, 2
+
+
+create table pardre1.outpt_ute_rates as
+(select reporting_months.first_day
+    , enrollment.incomplete_outpt_enc
+    , ute.enctype as extra
+    , count(distinct enrollment.mrn) as n_enrolled
+    , sum(case when ute.mrn is null then 0 else 1 end) as num_events
+from  pardre1.inflate_months  as reporting_months LEFT JOIN
+      pardre1.unholy_union    as enrollment
+on    enrollment.enr_start  le reporting_months.last_day AND
+      enrollment.enr_end    ge reporting_months.first_day LEFT JOIN
+      sb_ghri.utilization   as ute
+on    enrollment.mrn = ute.mrn AND
+      ute.adate between reporting_months.first_day and reporting_months.last_day
+group by 1, 2, 3
+--order by 1, 2, 3
+) with data ;
+
+
+There is a problem w/the logic

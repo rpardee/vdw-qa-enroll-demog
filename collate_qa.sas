@@ -28,7 +28,7 @@ libname raw "\\groups\data\CTRHS\Crn\voc\enrollment\programs\qa_results\raw" ;
 libname col "\\groups\data\CTRHS\Crn\voc\enrollment\programs\qa_results" ;
 
 * We need this so that lowest_count is defined. ;
-%include "//ghrisas/Warehouse/Sasdata/CRN_VDW/lib/StdVars.sas" ;
+%include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/StdVars.sas" ;
 %include "\\groups\data\CTRHS\Crn\voc\enrollment\programs\staging\qa_formats.sas" ;
 
 
@@ -559,10 +559,11 @@ quit ;
 
   title2 "Breadth vs Depth: Total Person/Years by Duration of Typical Enrollment Period" ;
   ods graphics / imagename = "py_x_duration" ;
-  proc sgplot data = py_dur ;
-    scatter x = person_years y = duration_p50 / yerrorlower = duration_p25
+  proc sgplot data = py_dur noautolegend ;
+    scatter x = person_years y = duration_p50 / group = site
+                                                yerrorlower = duration_p25
                                                 yerrorupper = duration_p75
-                                                errorbarattrs = (color = lightyellow thickness = .7mm)
+                                                errorbarattrs = (/* color = lightyellow */ thickness = .7mm)
                                                 datalabel = site
                                                 datalabelattrs = (size = 2mm)
                                                 markerattrs = (symbol = circlefilled size = 3mm)
@@ -749,6 +750,7 @@ quit ;
 %mend report_correlations ;
 
 %regen ;
+
 * endsas ;
 
 ods listing close ;
