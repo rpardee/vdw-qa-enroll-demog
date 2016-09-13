@@ -35,7 +35,7 @@
 * ======================= begin edit section ======================= ;
 
 * If roy forgets to comment this out, please do so.  Thanks/sorry! ;
-* %include "//home/pardre1/SAS/Scripts/remoteactivate.sas" ;
+* %include "h:/SAS/Scripts/remoteactivate.sas" ;
 
 options
   linesize  = 150
@@ -53,7 +53,7 @@ options
 libname _all_ clear ;
 
 * Please edit this to point to your local standard vars file. ;
-%include "//ghrisas/Warehouse/Sasdata/CRN_VDW/lib/StdVars.sas" ;
+%include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/StdVars.sas" ;
 
 * Please edit this so it points to the location where you unzipped the files/folders. ;
 %let root = //groups/data/CTRHS/Crn/voc/enrollment/programs/ghc_qa ;
@@ -64,7 +64,7 @@ libname _all_ clear ;
 %let skip_graphs = false ;
 
 * Please set start_year to your earliest date of enrollment data. ;
-%let start_year = 1988 ;
+%let start_year = 1970 ;
 %let end_year = %sysfunc(date(), year4.) ;
 
 * ======================== end edit section ======================== ;
@@ -251,10 +251,14 @@ quit ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: ins_privatepay', 'ins_privatepay has a bad value', 2, 5) ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: ins_selffunded', 'ins_selffunded has a bad value', 2, 5) ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: ins_statesubsidized', 'ins_statesubsidized has a bad value', 2, 5) ;
-    * insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: outside_utilization', 'outside_utilization has a bad value', 2, 5) ;
+    insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: plan_hmo', 'plan_hmo has a bad value', 2, 5) ;
+    insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: plan_pos', 'plan_pos has a bad value', 2, 5) ;
+    insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: plan_ppo', 'plan_ppo has a bad value', 2, 5) ;
+    insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: plan_indemnity', 'plan_indemnity has a bad value', 2, 5) ;
+
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: incomplete_outpt_rx', 'incomplete_outpt_rx has a bad value', 2, 5) ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: incomplete_outpt_enc', 'incomplete_outpt_enc has a bad value', 2, 5) ;
-    insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: incomplete_inpt_enc', 'incomplete_inpt_enc nas a bad value', 2, 5) ;
+    insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: incomplete_inpt_enc', 'incomplete_inpt_enc has a bad value', 2, 5) ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: incomplete_emr', 'incomplete_emr has a bad value', 2, 5) ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: incomplete_lab', 'incomplete_lab has a bad value', 2, 5) ;
     insert into erbr_checks (description, problem, warn_lim, fail_lim) values ('Valid values: incomplete_tumor', 'incomplete_tumor has a bad value', 2, 5) ;
@@ -273,7 +277,7 @@ quit ;
   quit ;
 
   data
-    to_stay.bad_enroll (drop = rid)
+    to_stay.bad_enroll (drop = rid flg_: wt)
     periods (keep = mrn enr_start enr_end rid)
     tmpcorr (keep = mrn enr_start enr_end wt flg_:)
   ;
@@ -356,7 +360,7 @@ quit ;
 
     do i = 1 to dim(flags) ;
       if put(flags(i), $flg.) = "bad" then do ;
-        problem = lowcase(vname(flags(i))) || " has a bad value" ;
+        problem = catx(' ', lowcase(vname(flags(i))), "has a bad value") ;
         output to_stay.bad_enroll ;
       end ;
     end ;
@@ -393,7 +397,7 @@ quit ;
         denvals.add() ;
       end ;
       if put(denflgs{i}, $incflg.) = "bad" then do ;
-        problem = den_var || " has a bad value" ;
+        problem = catx(' ', den_var, "has a bad value") ;
         output to_stay.bad_enroll ;
       end ;
     end ;
@@ -440,11 +444,6 @@ quit ;
     end ;
     drop i rc alldone den_var den_val frq ;
   run ;
-  * REMOVE THIS ROY!!! ;
-  * data to_go.denvals ;
-  *   set denvals ;
-  * run ;
-
 
   %prepCorrData(in=tmpcorr(keep = wt flg_:), out=&outcorr) ;
 
@@ -580,6 +579,29 @@ quit ;
 
     alter table periods drop rid ;
   quit ;
+
+  * We dont want bad_enroll to be unwieldy--remove all but 50 examples of each problem found. ;
+  data to_stay.bad_enroll (label="Records from &_vdw_enroll found wanting (SAMPLE ONLY--50 SAMPLE RECS/PROBLEM!)") ;
+    length num_recs 3 ;
+    set to_stay.bad_enroll ;
+    if _n_ = 1 then do ;
+      declare hash seen_probs() ;
+      seen_probs.definekey('problem') ;
+      seen_probs.definedata('problem', 'num_recs') ;
+      seen_probs.definedone() ;
+      call missing(num_recs) ;
+    end ;
+    if seen_probs.find() = 0 then do ;
+      num_recs = num_recs + 1 ;
+      seen_probs.replace() ;
+    end ;
+    else do ;
+      num_recs = 1 ;
+      seen_probs.add() ;
+    end ;
+    if num_recs le 50 then output ;
+    drop num_recs ;
+  run ;
 
   * Now produce descriptives on enrollment lengths. ;
   * Step 1--close up any gaps shorter than 92 days (intention is 3 months). ;
@@ -1023,7 +1045,7 @@ quit ;
         ins_medicare_b        = "Has medicare part B insurance?"
         ins_medicare_c        = "Has medicare part C insurance?"
         ins_medicare_d        = "Has medicare part D insurance?"
-        ins_other,            = "Has 'other' insurance?"
+        ins_other             = "Has 'other' insurance?"
         ins_privatepay        = "Has private pay insurance?"
         ins_selffunded        = "Has self-funded insurance?"
         ins_statesubsidized   = "Has state-subsizided insurance?"

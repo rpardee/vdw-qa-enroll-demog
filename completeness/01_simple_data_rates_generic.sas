@@ -28,12 +28,14 @@ options
 
 * Please change this to point to your local copy of StdVars.sas ;
 %include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/StdVars_Teradata.sas" ;
+* libname nen "\\ghcmaster\ghri\Warehouse\management\OfflineData\CRN_VDW\Enrollment" ;
+* %let _vdw_enroll = nen.collapsed_classified ;
 
 * Please change this to the location where you unzipped this package. ;
 %let root = \\groups\data\CTRHS\Crn\voc\enrollment\programs\completeness ;
 
 * Years over which you want rate data ;
-%let start_year = 2000 ;
+%let start_year = 2012 ;
 %let end_year   = 2015 ; * <-- best to use last complete year ;
 
 /*
@@ -72,8 +74,6 @@ libname mylib teradata
 
 * %let tmplib = work ;
 %let tmplib = mylib ;
-
-%let _vdw_enroll = mylib.unholy_union ;
 
 * ============== END EDIT SECTION ========================= ;
 * Where you want the output datasets. ;
@@ -257,11 +257,6 @@ quit ;
           , outset  = out.&_siteabbr._emr_v_rates
           ) ;
 
-/*
-* options mprint mlogic ;
-
-* options SASTRACE=',,,d' sastraceloc=saslog;
-
 %get_rates(startyr  = &start_year
           , endyr   = &end_year
           , inset   = &_vdw_social_hx
@@ -271,4 +266,3 @@ quit ;
           , outset  = out.&_siteabbr._emr_s_rates
           ) ;
 
-*/

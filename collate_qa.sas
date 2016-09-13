@@ -10,6 +10,15 @@
 *********************************************/
 
 %include "\\home\pardre1\SAS\Scripts\remoteactivate.sas" ;
+%macro set_opt ;
+  %if &sysver = 9.4 %then %do ;
+    options extendobscounter = no ;
+  %end ;
+
+%mend set_opt ;
+
+%set_opt ;
+
 %let GHRIDW_ROOT = //ghcmaster/ghri/warehouse ;
 %include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/standard_macros.sas" ;
 
@@ -314,79 +323,97 @@ quit ;
 
 
 %macro do_freqs(nom, byvar = year) ;
+  /*
+    variables can take any of several values.
+    for any combos of site|var_name|&byvar where value = Y that dont occur in the dset, add them in with count and pct of 0
+  */
 
   %stack_datasets(inlib = raw, nom = &nom, outlib = work) ;
 
   %let fmt = ;
 
   proc sql ;
+    * Sum counts over all values of each var to get totals. ;
     create table tots as
     select  site, &byvar, var_name, sum(count) as total, count(*) as num_recs
     from    &nom
     group by site, &byvar, var_name
     ;
 
-    create table nom as
-    select r.site, r.var_name, r.&byvar &fmt., r.value, t.total, r.count / t.total as pct format = percent8.2
-    from  &nom as r INNER JOIN
+    * All sites submitting freqs ;
+    create table sites as
+    select distinct site
+    from &nom
+    ;
+
+    * All combos of var names & values ;
+    create table class_levels as
+    select distinct var_name, &byvar, value
+    from &nom
+    where var_name IS NOT NULL AND
+          &byvar IS NOT NULL AND
+          value IS NOT NULL
+    ;
+
+    * This is something like a CLASSLEVEL dataset. ;
+    create table cartesian_product as
+    select site, var_name, &byvar, value
+    from sites CROSS JOIN
+          class_levels
+    ;
+
+    * if we have a true count for this combo of site, var name, byval & value we use it, otherwise give it a 0. ;
+    create table supplemented as
+    select cp.site
+          , cp.var_name
+          , cp.&byvar
+          , cp.value
+          , coalesce(n.count, 0) as count
+    from  cartesian_product as cp LEFT JOIN
+          &nom as n
+    on    cp.site = n.site AND
+          cp.var_name = n.var_name AND
+          cp.&byvar = n.&byvar AND
+          cp.value = n.value
+    ;
+
+    create table col.&nom as
+    select r.site, r.var_name, r.&byvar &fmt., r.value
+          , r.count as total
+          , case when t.total is null then 0 else (r.count / t.total) end as pct format = percent8.2
+    from  supplemented as r LEFT JOIN
           tots as t
     on    r.site = t.site AND
           r.&byvar = t.&byvar AND
           r.var_name = t.var_name
-    ;
-
-    * [RP 20150210: Not actually sure why we do this, but it is no help for the incomplete vars.] ;
-    create table combos as
-    select distinct site, var_name, &byvar, 'Y' as value
-    from &nom
-    where var_name not like 'incomplete_%'
-    ;
-
-    create table supplement as
-    select c.*
-    from  combos as c LEFT JOIN
-          nom as t
-    on    c.site = t.site AND
-          c.var_name = t.var_name AND
-          c.&byvar = t.&byvar AND
-          c.value = t.value
-    where t.site IS NULL
-    ;
-
-    create table col.&nom as
-    select site, var_name, &byvar &fmt., value, total, pct
-    from nom
-    UNION ALL
-    select site, var_name, &byvar &fmt., 'Y' as value, 0 as total, 0 as pct
-    from supplement
-    order by var_name, value, site, &byvar
+    order by r.site, r.var_name, r.&byvar, r.value
     ;
 
   quit ;
 
-  /*
-    variables can take any of several values.
-    for any combos of site|var_name|year where value = Y that dont occur in the dset, add them in with count and pct of 0
-  */
 %mend do_freqs ;
 
 %macro misc_wrangling() ;
   proc sql ;
     create table col.raw_enrollment_counts as
     select    site, year
-            , max(total) as total_count label = "No. of enrollees" format = comma12.0
+            , sum(total) as total_count label = "No. of enrollees" format = comma12.0
             , count(*) as num_recs
     from    col.enroll_freqs
     where var_name = 'drugcov'
     group by site, year
     ;
-    create table col.raw_gender_counts as
-    select site, gender, sum(total) as total_count, count(*) as num_recs
+    create table col.raw_demog_counts as
+    select site, sum(total) as total_count label = "No MRNs in Demographics"
     from col.demog_freqs
     where var_name = 'hispanic'
-    group by site, gender
+    group by site
     ;
   quit ;
+  data col.raw_enrollment_counts ;
+    set col.raw_enrollment_counts ;
+    site_name = put(site, $s.) ;
+  run ;
 %mend misc_wrangling ;
 
 %macro regen() ;
@@ -414,6 +441,7 @@ quit ;
 %mend regen ;
 
 %macro report() ;
+  %* Reports on enroll_freqs. ;
   %local start_year end_year ;
   %let start_year = 1990 ;
   %let end_year = %trim(%eval(%sysfunc(year("&sysdate"d)) -1)) ;
@@ -421,9 +449,9 @@ quit ;
     by var_name value site year ;
     *  Enforcing a minimal number of records, just to keep out e.g., the year in which FALLON had 100% of their 29 (or however many) records with ins_medicare = y. ;
     * where year between 1990 and (%sysfunc(year("&sysdate"d)) -1) AND value not in ('U', 'N') and total ge 1000 ;
-    where year between &start_year and &end_year /* AND value not in ('.', ' ') */ and total ge 1000 ;
+    where year between &start_year and &end_year /* AND value not in ('.', ' ') */ and total > 1  ;
   run ;
-
+  * We report age groups separately, so divvy up the data. ;
   data gnu agegroups ;
     length site $ 22 ;
     set gnu ;
@@ -448,6 +476,7 @@ quit ;
   run ;
 
   proc sql ;
+    * Convert age values to range descriptions. ;
     create table bubba as
     select site, year, put(input(put(value, $ta.), best.), shrtage.) as value, total, pct
     from agegroups
@@ -463,9 +492,11 @@ quit ;
     by vcat var_name value site year ;
   run ;
 
+  * Enrollment count depiction--we need a separate var for the high-volume sites ;
   data ax ;
     length site_name $ 22 ;
     set col.raw_enrollment_counts ;
+    where total_count > 0 ;
     total_count = total_count / 1000 ;
     if site in ('KPNC', 'KPSC') then do ;
       high_count = total_count ;
@@ -526,10 +557,24 @@ quit ;
   proc sql ;
     create table tpy as
     select site, site_name label = "HMORN Site"
-        , sum(coalesce(total_count, high_count)) * 1000 as person_years format = comma12.0 label = "Total no. of person/years"
-    from ax
+        , sum(total_count) as person_years format = comma12.0 label = "Total no. of person/years"
+    from col.raw_enrollment_counts
     group by site, site_name
     ;
+
+    create table tpy2 as
+    select t.*
+          , d.total_count as demog_count
+          , t.person_years/d.total_count as years_per_demog_person label = "Enrollment years per MRN in Demographics"
+    from tpy as t INNER JOIN
+         col.raw_demog_counts as d
+    on   t.site = d.site
+    ;
+
+    create table tpy as
+    select * from tpy2
+    ;
+
     * select * from tpy ;
     create table py_dur as
     select t.*
@@ -548,8 +593,9 @@ quit ;
 
   proc print data = tpy label ;
     id site_name ;
-    sum person_years ;
-    format person_years comma12.0 ;
+    var person_years demog_count years_per_demog_person ;
+    sum person_years demog_count ;
+    format person_years demog_count comma12.0 years_per_demog_person 5.2 ;
   run ;
 
   proc sgplot data = tpy ;
@@ -750,8 +796,6 @@ quit ;
 %mend report_correlations ;
 
 %regen ;
-
-* endsas ;
 
 ods listing close ;
 
