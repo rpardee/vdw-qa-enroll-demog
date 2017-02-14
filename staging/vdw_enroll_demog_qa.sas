@@ -42,12 +42,21 @@ options
   msglevel  = i
   formchar  = '|-++++++++++=|-/|<>*'
   /* dsoptions = note2err */
-  /* nosqlremerge */
+  nosqlremerge
   nocenter
   noovp
   mprint
   mlogic
 ;
+
+%macro set_opt ;
+  %if &sysver = 9.4 %then %do ;
+    options extendobscounter = no ;
+  %end ;
+
+%mend set_opt ;
+
+%set_opt ;
 
 * Undefine all libnames, just in case I rely on GHC-specific nonstandard ones downstream. ;
 libname _all_ clear ;
@@ -64,8 +73,49 @@ libname _all_ clear ;
 %let skip_graphs = false ;
 
 * Please set start_year to your earliest date of enrollment data. ;
-%let start_year = 1970 ;
-%let end_year = %sysfunc(date(), year4.) ;
+%let start_year = 1988 ;
+%let end_year = %sysfunc(intnx(year, "&sysdate9"d, -1, end), year4.) ;
+
+* For the completeness graphs, what is the minimum monthly enrolled N we require ;
+* before we are willing to plot the point? ;
+%let min_n = 200 ;
+
+/*
+
+  If your VDW files are not in an rdbms you can ignore the rest of this edit
+  section. If they are & you want to possibly save a ton of processing time,
+  please read on.
+
+  The bulk of the work of this program is done in a SQL join between VDW
+  enrollment, a substantive VDW file (like rx or tumor), and a small utility
+  dataset of the months between &start_year and &end_year.
+
+  If you have the wherewithal to create this utility dataset on the db server
+  where the rest of your VDW tables live, then SAS will (probably) pass the
+  join work off tothe db to complete, which is orders of magnitude faster than
+  having SAS pull your tables into temp datasets & do the join on the SAS
+  side. At Group Health (we use Teradata) making this change turned a job that
+  ran in about 14 hours into one that runs in 15 *minutes*.
+
+  TO DO SO, create a libname pointing at a db on the same server as VDW, to
+  which you have CREATE TABLE permissions.  You can see what I used at GH
+  commented-out, below.  I *believe* the 'connection = global' bit is necessary
+  to get the join pushed to the db, and that it works for rdbms' other than
+  Teradata, but am not positive.  I'd love to hear your experience if anybody
+  tries this out.
+*/
+
+libname mylib teradata
+  user              = "&username@LDAP"
+  password          = "&password"
+  server            = "&td_prod"
+  schema            = "%sysget(username)"
+  multi_datasrc_opt = in_clause
+  connection        = global
+;
+
+%let tmplib = mylib ;
+* %let tmplib = work ;
 
 * ======================== end edit section ======================== ;
 * ======================== end edit section ======================== ;
@@ -78,6 +128,8 @@ libname _all_ clear ;
 
 %include "&root./qa_formats.sas" ;
 %include "&root./vdw_lang_qa.sas" ;
+%include "&root./simple_data_rates_generic.sas" ;
+%include "&root./graph_data_rates.sas" ;
 
 libname to_stay "&root./DO_NOT_SEND" ;
 libname to_go   "&root./to_send" ;
@@ -1230,49 +1282,9 @@ quit ;
   quit ;
 %mend demog_tier_one_point_five ;
 
-%macro fake_language ;
-  * If the site has not yet implemented person_languages, create a temp fake one so the program will run ;
-  %local fake_langs i ;
-  %let fake_langs = false ;
-  %if %symexist(_vdw_language) %then %do ;
-    %if (%sysfunc(exist(&_vdw_language)) OR %sysfunc(exist(&_vdw_language, VIEW))) %then %do ;
-      %put Actual language implementation found--not faking one out. ;
-    %end ;
-    %else %do ;
-      %let fake_langs = true ;
-      proc sql ;
-        insert into results (description, qa_macro, detail_dset, result)
-        values ("Languages table not found--treating as not implemented."
-                , '%fake_langs', 'n/a', 'fail')
-        ;
-      quit ;
-    %end ;
-  %end ;
-  %else %do ;
-    %let fake_langs = true ;
-    proc sql ;
-      insert into results (description, qa_macro, detail_dset, result)
-      values ("_vdw_language var not defined--treating as not implemented."
-              , '%fake_langs', 'n/a', 'fail')
-      ;
-    quit ;
-  %end ;
-  %if &fake_langs = true %then %do ;
-    %global _vdw_language ;
-    %let _vdw_language = work.fake_langs ;
-    data &_vdw_language ;
-      mrn = 'santa' ;
-      lang_iso = 'elvish' ;
-      lang_usage = 'you better believe it.' ;
-      lang_primary = 'sure, why not?' ;
-      msg = "This dset was created b/c the e/d/l QA program could not find an actual implementation." ;
-      output ;
-    run ;
-  %end ;
-%mend fake_language ;
-
 %macro draw_heatmap(corrset = to_go.&_siteabbr._flagcorr) ;
   %if &sysver ge 9.1 and %sysprod(graph) = 1 and &skip_graphs = false %then %do ;
+    ods path(prepend) work.templat(update);
     proc template;
       define statgraph corrHeatmap;
        dynamic _Title;
@@ -1303,15 +1315,80 @@ quit ;
   %end ;
 %mend draw_heatmap ;
 
+%macro do_all_rates ;
 
-%check_vars ;
-%fake_language ;
-%demog_tier_one ;
-%lang_tier_one; *pjh19401;
+  %get_rates(startyr  = &start_year
+            , endyr   = &end_year
+            , inset   = &_vdw_tumor
+            , datevar = dxdate
+            , incvar  = incomplete_tumor
+            , outset  = to_go.&_siteabbr._tumor_rates
+            , outunenr = to_go.&_siteabbr._tum_unenrolled
+            ) ;
+
+  %get_rates(startyr    = &start_year
+            , endyr     = &end_year
+            , inset     = &_vdw_utilization
+            , datevar   = adate
+            , incvar    = incomplete_inpt_enc
+            , outset    = to_go.&_siteabbr._ute_in_rates_by_enctype
+            , extra_var = coalesce(enctype, 'XX')
+            ) ;
+
+  %get_rates(startyr     = &start_year
+            , endyr      = &end_year
+            , inset      = &_vdw_lab
+            , datevar    = lab_dt
+            , incvar     = incomplete_lab
+            , outset     = to_go.&_siteabbr._lab_rates
+            , outunenr = to_go.&_siteabbr._lab_unenrolled
+            ) ;
+
+  %get_rates(startyr    = &start_year
+            , endyr     = &end_year
+            , inset     = &_vdw_utilization
+            , datevar   = adate
+            , incvar    = incomplete_outpt_enc
+            , outset    = to_go.&_siteabbr._ute_out_rates_by_enctype
+            , extra_var = coalesce(enctype, 'XX')
+            , outunenr = to_go.&_siteabbr._enc_unenrolled
+            ) ;
+  %get_rates(startyr  = &start_year
+            , endyr   = &end_year
+            , inset   = &_vdw_vitalsigns
+            /* , extrawh = %str(AND dsource = 'P') */
+            , datevar = measure_date
+            , incvar  = incomplete_emr
+            , outset  = to_go.&_siteabbr._emr_v_rates
+            , outunenr = to_go.&_siteabbr._vsn_unenrolled
+            ) ;
+
+  %get_rates(startyr  = &start_year
+            , endyr   = &end_year
+            , inset   = &_vdw_social_hx
+            /* , extrawh = %str(AND gh_source = 'C') */
+            , datevar = contact_date
+            , incvar  = incomplete_emr
+            , outset  = to_go.&_siteabbr._emr_s_rates
+            , outunenr = to_go.&_siteabbr._shx_unenrolled
+            ) ;
+
+  %get_rates(startyr  = &start_year
+            , endyr   = &end_year
+            , inset   = &_vdw_rx
+            , datevar = rxdate
+            , incvar  = incomplete_outpt_rx
+            , outset  = to_go.&_siteabbr._rx_rates
+            , outunenr = to_go.&_siteabbr._rx_unenrolled
+            ) ;
+%mend do_all_rates ;
 
 /*
 */
 
+%check_vars ;
+%demog_tier_one ;
+%lang_tier_one; *pjh19401;
 %enroll_tier_one ;
 %make_denoms ;
 
@@ -1322,11 +1399,11 @@ run ;
 data to_stay.erbr_checks ;
   set erbr_checks ;
 run ;
-
-
 data to_go.&_siteabbr._tier_one_results ;
   set results ;
 run ;
+
+%do_all_rates ;
 
 options orientation = landscape ;
 ods graphics / height = 6in width = 10in ;
@@ -1336,6 +1413,7 @@ ods html path   = "%sysfunc(pathname(to_go))" (URL=NONE)
          body   = "&_siteabbr._vdw_enroll_demog_qa.html"
          (title = "&_SiteName.: QA for Enroll/Demographics - Tier 1 & 1.5")
          style  = magnify
+         nogfootnote
           ;
 
 
@@ -1354,6 +1432,57 @@ ods rtf file = "%sysfunc(pathname(to_stay))/&_siteabbr._vdw_enroll_demog_qa.rtf"
   %enroll_tier_one_point_five(outset = to_go.&_siteabbr._enroll_freqs) ;
   %demog_tier_one_point_five(outset = to_go.&_siteabbr._demog_freqs) ;
   %draw_heatmap ;
+
+  title2 "Completeness of VDW Data for &_SiteName" ;
+  %graph_capture(rateset = to_go.&_siteabbr._rx_rates
+                , incvar = incomplete_outpt_rx
+                , ylab = Pharmacy Fills
+                ) ;
+
+  %graph_capture(rateset = to_go.&_siteabbr._ute_out_rates_by_enctype (where = (extra = 'AV'))
+                , incvar = incomplete_outpt_enc
+                , ylab = Outpatient Encounters
+                ) ;
+  %graph_capture(rateset = to_go.&_siteabbr._ute_in_rates_by_enctype (where = (extra = 'IP'))
+                , incvar = incomplete_inpt_enc
+                , ylab = Inpatient Encounters
+                ) ;
+
+  %panel_ute(rateset = to_go.&_siteabbr._ute_out_rates_by_enctype (where = (extra in ('AV', 'EM', 'TE')))
+              , incvar = incomplete_outpt_enc, rows = 1, cols = 3) ;
+
+  %panel_ute(rateset = to_go.&_siteabbr._ute_out_rates_by_enctype (where = (extra in ('ED', 'IP', 'IS')))
+              , incvar = incomplete_outpt_enc, rows = 1, cols = 3) ;
+
+  %panel_ute(rateset = to_go.&_siteabbr._ute_out_rates_by_enctype (where = (extra in ('LO', 'RO', 'OE')))
+              , incvar = incomplete_outpt_enc, rows = 1, cols = 3) ;
+
+  %graph_capture(incvar  = incomplete_tumor
+                , rateset  = to_go.&_siteabbr._tumor_rates
+                , ylab = Tumor Registry
+                ) ;
+  %graph_capture(incvar  = incomplete_lab
+                , rateset  = to_go.&_siteabbr._lab_rates
+                , ylab = Lab Results
+                ) ;
+  %graph_capture(incvar  = incomplete_emr
+                , rateset  = to_go.&_siteabbr._emr_s_rates
+                , ylab = EMR Data (Social History)
+                ) ;
+  %graph_capture(incvar  = incomplete_emr
+                , rateset  = to_go.&_siteabbr._emr_v_rates
+                , ylab = EMR Data (Vital Signs)
+                ) ;
+
+  title2 "Counts of Data Events for people not appearing in the Enrollment Table" ;
+
+  %graph_unenrolled(inset = to_go.&_siteabbr._rx_unenrolled , ylab = %str(Pharmacy fills)) ;
+  %graph_unenrolled(inset = to_go.&_siteabbr._enc_unenrolled, ylab = %str(Encounters)) ;
+  %graph_unenrolled(inset = to_go.&_siteabbr._lab_unenrolled, ylab = %str(Lab Results)) ;
+  %graph_unenrolled(inset = to_go.&_siteabbr._tum_unenrolled, ylab = %str(Tumors)) ;
+  %graph_unenrolled(inset = to_go.&_siteabbr._vsn_unenrolled, ylab = %str(Vital Signs)) ;
+  %graph_unenrolled(inset = to_go.&_siteabbr._shx_unenrolled, ylab = %str(Social History)) ;
+
 run ;
 
 ods _all_ close ;

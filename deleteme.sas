@@ -6,6 +6,7 @@
 *
 * //groups/data/CTRHS/Crn/voc/enrollment/programs/deleteme.sas
 *
+* purpose
 *********************************************/
 
 %include "h:/SAS/Scripts/remoteactivate.sas" ;
@@ -18,13 +19,33 @@ options
   nocenter
   noovp
   nosqlremerge
+  extendobscounter = no ;
 ;
 
-libname gh "\\groups\data\CTRHS\Crn\voc\enrollment\programs\ghc_qa\DO_NOT_SEND" ;
+libname ts "\\groups\data\CTRHS\Crn\voc\enrollment\programs\ghc_qa\to_send" ;
 
-proc sql outobs = 20 nowarn ;
-  select mrn, enr_start, enr_end, incomplete_emr
-  from gh.bad_enroll
-  where problem like '%future%'
-  ;
-quit ;
+options orientation = landscape ;
+ods graphics / height = 8in width = 10in ;
+
+* %let out_folder = //groups/data/CTRHS/Crn/voc/enrollment/programs/ ;
+%let out_folder = %sysfunc(pathname(s)) ;
+
+ods html path = "&out_folder" (URL=NONE)
+         body   = "deleteme.html"
+         (title = "deleteme output")
+         style = magnify
+         nogfootnote
+          ;
+
+* ods rtf file = "&out_folder.deleteme.rtf" device = sasemf ;
+
+    proc sgplot data = ts.ghc_rx_unenrolled ;
+      loess x = first_day y = n_unenrolled / lineattrs = (pattern = solid) nolegfit ;
+      xaxis grid label = "Month" ;
+      yaxis grid min = 0 label = "No. rx fills for unenrolled people" ;
+    run ;
+
+
+run ;
+
+ods _all_ close ;

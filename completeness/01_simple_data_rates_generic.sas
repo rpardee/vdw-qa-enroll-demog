@@ -12,8 +12,7 @@
 
 * ============== BEGIN EDIT SECTION ========================= ;
 * Please comment this include statement out if Roy forgets to--thanks/sorry! ;
-%include "\\home\pardre1\SAS\Scripts\remoteactivate.sas" ;
-
+%include "h:/SAS/Scripts/remoteactivate.sas" ;
 options
   linesize  = 150
   msglevel  = i
@@ -25,17 +24,25 @@ options
   /* sastrace    = ',,,d' */
   /* sastraceloc = saslog */
 ;
+%macro set_opt ;
+  %if &sysver = 9.4 %then %do ;
+    options extendobscounter = no ;
+  %end ;
+
+%mend set_opt ;
+
+%set_opt ;
 
 * Please change this to point to your local copy of StdVars.sas ;
 %include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/StdVars_Teradata.sas" ;
-* libname nen "\\ghcmaster\ghri\Warehouse\management\OfflineData\CRN_VDW\Enrollment" ;
-* %let _vdw_enroll = nen.collapsed_classified ;
+* Temporarily point this at the candidate table. ;
+%let _vdw_enroll = __tdvdw.enroll ;
 
 * Please change this to the location where you unzipped this package. ;
 %let root = \\groups\data\CTRHS\Crn\voc\enrollment\programs\completeness ;
 
 * Years over which you want rate data ;
-%let start_year = 2012 ;
+%let start_year = 2010 ;
 %let end_year   = 2015 ; * <-- best to use last complete year ;
 
 /*
@@ -210,14 +217,6 @@ quit ;
 
 %get_rates(startyr  = &start_year
           , endyr   = &end_year
-          , inset   = &_vdw_rx
-          , datevar = rxdate
-          , incvar  = incomplete_outpt_rx
-          , outset  = out.&_siteabbr._rx_rates
-          ) ;
-
-%get_rates(startyr  = &start_year
-          , endyr   = &end_year
           , inset   = &_vdw_tumor
           , datevar = dxdate
           , incvar  = incomplete_tumor
@@ -264,5 +263,13 @@ quit ;
           , datevar = contact_date
           , incvar  = incomplete_emr
           , outset  = out.&_siteabbr._emr_s_rates
+          ) ;
+
+%get_rates(startyr  = &start_year
+          , endyr   = &end_year
+          , inset   = &_vdw_rx
+          , datevar = rxdate
+          , incvar  = incomplete_outpt_rx
+          , outset  = out.&_siteabbr._rx_rates
           ) ;
 

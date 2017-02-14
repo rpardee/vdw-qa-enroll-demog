@@ -33,9 +33,11 @@ options
 * OPTIONAL--the minimum monthly enrollment to require for a data point to show up on plots. ;
 * Used to elide points for which the rate figures are unstable/implausible due to low N. ;
 %let min_n = 200 ;
+
+%let vers = ema ;
 * ============== END EDIT SECTION ========================= ;
 
-libname out "&root./to_send" ;
+libname out "&root./to_send/&vers._version" ;
 
 proc format ;
    value $enct
@@ -91,9 +93,9 @@ quit ;
 
 options orientation = landscape ;
 
-ods html path = "&root./do_not_send" (URL=NONE)
+ods html path = "&root./do_not_send/&vers._version" (URL=NONE)
          body   = "vdw_completeness.html"
-         (title = "Completeness of Data Capture in VDW for &_SiteName")
+         (title = "&vers Completeness of Data Capture in VDW for &_SiteName")
          style = magnify
          nogfootnote
         ;
@@ -106,6 +108,7 @@ ods rtf file = "&root./do_not_send/vdw_completeness.rtf" device = sasemf style =
                   , incvar = incomplete_outpt_rx
                   , ylab = Pharmacy Fills
                   ) ;
+
     %graph_capture(rateset = out.&_siteabbr._ute_out_rates_by_enctype (where = (extra = 'AV'))
                   , incvar = incomplete_outpt_enc
                   , ylab = Outpatient Encounters
