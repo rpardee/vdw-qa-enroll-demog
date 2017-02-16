@@ -105,7 +105,7 @@ libname _all_ clear ;
   tries this out.
 */
 
-libname mylib teradata
+* libname mylib teradata
   user              = "&username@LDAP"
   password          = "&password"
   server            = "&td_prod"
@@ -114,8 +114,8 @@ libname mylib teradata
   connection        = global
 ;
 
-%let tmplib = mylib ;
-* %let tmplib = work ;
+* %let tmplib = mylib ;
+%let tmplib = work ;
 
 * ======================== end edit section ======================== ;
 * ======================== end edit section ======================== ;

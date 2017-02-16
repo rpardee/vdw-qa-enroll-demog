@@ -72,15 +72,15 @@ quit ;
     %if %length(&outunenr) > 0 %then %do ;
       create table &outunenr as
       select m.first_day
-          , COUNT(r.mrn) as n_unenrolled format = comma9.0 label = "No. events for people not appearing in enrollment"
-          , COUNT(distinct r.mrn) as nd_unenrolled format = comma9.0 label = "No. of people with events not appearing in enrollment"
+          , sum(case when e.mrn is null then 1 else 0 end) as n_unenrolled format = comma9.0 label = "No. events for people not appearing in enrollment"
+          , COUNT(r.mrn) as n_total format = comma9.0 label = "Total number of events in this month"
+          , calculated n_unenrolled / calculated n_total as proportion_unenrolled label = "Proportion of events by unenrolled"
       from &inset as r INNER JOIN
            &tmplib..inflate_months as m
       on   r.&datevar between m.first_day and m.last_day LEFT JOIN
            &enrlset as e
       on   r.mrn = e.mrn AND
            r.&datevar between e.&startvar and e.&endvar
-      where e.mrn IS NULL &extrawh
       group by m.first_day
       order by 1
       ;

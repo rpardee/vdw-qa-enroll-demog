@@ -67,7 +67,7 @@ quit ;
   title3 "&ylab" ;
 
   proc sgplot data = &inset ;
-    loess x = first_day y = n_unenrolled / lineattrs = (pattern = solid) nolegfit ;
+    loess x = first_day y = proportion_unenrolled / lineattrs = (pattern = solid) nolegfit ;
     xaxis grid label = "Month" ;
     yaxis grid min = 0 label = "No. of &ylab for non-enrollees" ;
   run ;
