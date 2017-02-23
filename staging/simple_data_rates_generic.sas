@@ -14,6 +14,7 @@ proc format ;
     "K" = "Suspected Incomplete"
     "N" = "Not Suspected Incomplete"
     "X" = "Not Implemented"
+    "?" = "no dataset"
   other = "Unknown"
   ;
 quit ;
@@ -49,8 +50,39 @@ quit ;
               , outunenr  =               /* optional name of a dset to hold an output dset of record counts of events for unenrolled ppl */
               ) ;
   * Creates counts of enrollees by the various completeness flags, plus median age, for every month in the time period indicated. ;
+
   %removedset(dset = &tmplib..inflate_months) ;
   %gen_months(startyr = &startyr, endyr = &endyr, outset = &tmplib..inflate_months) ;
+
+  * If the inset dataset does not exist, create a null output dset and go home ;
+  %if %sysfunc(exist(&inset)) %then %do ;
+    %* nothing ;
+  %end ;
+  %else %do ;
+    data &outset ;
+      set &tmplib..inflate_months ;
+      &incvar = '?' ;
+      extra = -1 ;
+      n = 0 ;
+      num_events = 0 ;
+      rate = . ;
+      drop yr mo last_day ;
+    run ;
+    %do i = 1 %to 10 ;
+      %put DIG IT: NO SUCH DATASET AS &INSET--CREATING A NULL OUTPUT DSET!!! ;
+    %end ;
+    %if %length(&outunenr) > 0 %then %do ;
+      data &outunenr ;
+        set &tmplib..inflate_months ;
+        n_unenrolled = . ;
+        n_total = . ;
+        proportion_unenrolled = . ;
+        drop yr mo last_day ;
+      run ;
+    %end ;
+    %goto finish ;
+  %end ;
+
   proc sql ;
     create table summarized as
     select i.first_day length = 4
@@ -130,6 +162,9 @@ quit ;
       ;
     quit ;
   */
+
+
+%finish:
 
   data &outset ;
     length &incvar $ 30 ;

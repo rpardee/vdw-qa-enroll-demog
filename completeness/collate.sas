@@ -249,8 +249,8 @@ ods html path = "&out_folder" (URL=NONE)
 
   %plot(inset = col.ute_out_rates_by_enctype (where = (extra = 'AV')) , incvar = incomplete_outpt_enc , tit = %str(Ambulatory Visits), extr = %str(max = 2)) ;
   %plot(inset = col.summed_outpt_rates, incvar = incomplete_outpt_enc , tit = %str(All Non-Inpatient Visits)) ;
-  * %nonpanel_plot(inset = col.ute_out_rates_by_enctype (where = (extra = 'AV' and site eq 'PAMF')) , incvar = incomplete_outpt_enc     , tit = %str(Ambulatory Visits)) ;
   %plot(inset = col.ute_in_rates_by_enctype  (where = (extra = 'IP')) , incvar = incomplete_inpt_enc  , tit = %str(Inpatient Stays), extr = %str(max = .020)) ;
+  * %nonpanel_plot(inset = col.ute_out_rates_by_enctype (where = (extra = 'AV' and site eq 'PAMF')) , incvar = incomplete_outpt_enc     , tit = %str(Ambulatory Visits)) ;
   * %nonpanel_plot(inset = col.ute_in_rates_by_enctype  (where = (extra = 'IP' and site eq 'PAMF')) , incvar = incomplete_inpt_enc     , tit = %str(Inpatient Stays)) ;
 
   * %nonpanel_plot(inset = col.tumor_rates, incvar = incomplete_tumor, tit = %str(Tumor)) ;

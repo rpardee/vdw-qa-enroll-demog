@@ -53,7 +53,8 @@ proc format cntlout = sites ;
     'SWH'  = 'Baylor Scott & White'
     'HFHS' = 'Henry Ford'
     'GHS'  = 'Geisinger'
-    'GHC'  = 'Group Health'
+    'GHC'  = 'KP Washington'
+    'KPWA' = 'KP Washington'
     'PAMF' = 'Palo Alto'
     'EIRH' = 'Essentia'
     'KPCO' = 'KP Colorado'
@@ -213,6 +214,31 @@ proc format cntlout = sites ;
   ;
 quit ;
 
+data line_colors ;
+  input
+    @1    id         $char2.
+    @5    value       $char24.
+    @31   linecolor   $char8.
+  ;
+  markercolor = linecolor ;
+  markersymbol = 'circle' ;
+  linepattern = 'solid' ;
+datalines ;
+lc  Suspected Incomplete      CX4FA3E7
+lc  Not Suspected Incomplete  CXFFD472
+lc  Not Implemented           CXB4BDEA
+lc  Unknown                   CXFF0000
+run ;
+
+%macro stack_and_calc(which) ;
+
+  %stack_datasets(inlib = raw, nom = &which._unenrolled, outlib = col) ;
+  data col.&which._unenrolled ;
+    set col.&which._unenrolled ;
+    calc_prop_unenrolled = n_unenrolled / n_total ;
+  run ;
+
+%mend stack_and_calc ;
 
 %macro do_results() ;
 
@@ -223,6 +249,21 @@ quit ;
   %stack_datasets(inlib = raw, nom = flagcorr, outlib = col) ;
 
   %stack_datasets(inlib = raw, nom = enroll_duration_stats, outlib = col) ;
+
+  %stack_datasets(inlib = raw, nom = rx_rates, outlib = col) ;
+  %stack_datasets(inlib = raw, nom = emr_s_rates, outlib = col) ;
+  %stack_datasets(inlib = raw, nom = emr_v_rates, outlib = col) ;
+  %stack_datasets(inlib = raw, nom = lab_rates, outlib = col) ;
+  %stack_datasets(inlib = raw, nom = tumor_rates, outlib = col) ;
+  %stack_datasets(inlib = raw, nom = ute_in_rates_by_enctype, outlib = col) ;
+  %stack_datasets(inlib = raw, nom = ute_out_rates_by_enctype, outlib = col) ;
+
+  %stack_and_calc(which = rx) ;
+  %stack_and_calc(which = enc) ;
+  %stack_and_calc(which = lab) ;
+  %stack_and_calc(which = shx) ;
+  %stack_and_calc(which = tum) ;
+  %stack_and_calc(which = vsn) ;
 
   proc sort data = tier_one_results(drop = detail_dset num_bad) ;
     by qa_macro description site ;
@@ -609,7 +650,7 @@ quit ;
     scatter x = person_years y = duration_p50 / group = site
                                                 yerrorlower = duration_p25
                                                 yerrorupper = duration_p75
-                                                errorbarattrs = (/* color = lightyellow */ thickness = .7mm)
+                                            errorbarattrs = (thickness = .7mm)
                                                 datalabel = site
                                                 datalabelattrs = (size = 2mm)
                                                 markerattrs = (symbol = circlefilled size = 3mm)
@@ -650,7 +691,7 @@ quit ;
     rowaxis grid ;
     by vcat var_name ;
     where var_name like 'incomplete_%' and site in ('Geisinger'
-                                              , 'Group Health'
+                                              , 'KP Washington'
                                               , 'KP Colorado'
                                               , "KP Northern California"
                                               , "KP Hawaii"
@@ -797,6 +838,8 @@ quit ;
 
 %regen ;
 
+* endsas ;
+
 ods listing close ;
 
 options orientation = landscape ;
@@ -872,6 +915,49 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
   quit ;
 %mend overview ;
 
+%macro plot_data_rates(inset = col.rx_rates, incvar = incomplete_outpt_rx, tit = %str(Outpatient Pharmacy), extr = , rows = 3) ;
+
+  proc sort data = &inset out = gnu ;
+    by site first_day &incvar ;
+    where n gt 200 /* and rate gt 0 */ ;
+  run ;
+
+  ods graphics / imagename = "&incvar" ;
+
+  title2 "&tit" ;
+
+  proc sgpanel data = gnu dattrmap = line_colors ;
+    panelby site / novarname columns = 4 rows = &rows ;
+    /* options I tried to get out of the segfault when doing tumor: smooth = .2  interpolation = linear */
+    loess x = first_day y = rate / group = &incvar attrid = lc ;
+    * format site $s. ;
+    format site $s. ;
+    rowaxis grid label = "Records per Enrollee" &extr ;
+    colaxis grid display = (nolabel) ;
+    * where put(site, $s.) ne 'gotohell' ;
+  run ;
+%mend plot_data_rates ;
+
+%macro plot_unenrolled_rates(inset = col.lab_unenrolled, tit = , rows = 3, tot_crit = ) ;
+  proc sort data = &inset out = gnu ;
+    by site first_day ;
+    %if %length(&tot_crit) > 2 %then %do ;
+      where n_total > &tot_crit ;
+    %end ;
+  run ;
+
+  title2 "Proportion of &tit records for people not enrolled at the time." ;
+  proc sgpanel data = gnu ;
+    panelby site / novarname columns = 3 rows = &rows ;
+    loess x = first_day y = calc_prop_unenrolled / nolegfit ;
+    format site $s. ;
+    rowaxis grid display = (nolabel) ;
+    colaxis grid display = (nolabel) ;
+  run ;
+%mend plot_unenrolled_rates ;
+
+
+
   %overview ;
 
   %report ;
@@ -901,6 +987,22 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
     ;
   quit ;
 
+  %plot_data_rates(inset = col.rx_rates   , incvar = incomplete_outpt_rx, tit = %str(Outpatient Pharmacy)        ) ;
+  %plot_data_rates(inset = col.lab_rates  , incvar = incomplete_lab     , tit = %str(Lab Results)                ) ;
+  %plot_data_rates(inset = col.tumor_rates, incvar = incomplete_tumor   , tit = %str(Tumor)                      , extr = %str(max = 0.0015), rows = 3) ;
+  %plot_data_rates(inset = col.emr_s_rates  , incvar = incomplete_emr     , tit = %str(EMR Data (Social History))  ) ;
+  %plot_data_rates(inset = col.emr_v_rates  , incvar = incomplete_emr     , tit = %str(EMR Data (Vital Signs))  ) ;
+
+  %plot_data_rates(inset = col.ute_out_rates_by_enctype (where = (extra = 'AV')) , incvar = incomplete_outpt_enc , tit = %str(Ambulatory Visits), extr = %str(max = 2)) ;
+  %plot_data_rates(inset = col.ute_in_rates_by_enctype  (where = (extra = 'IP')) , incvar = incomplete_inpt_enc  , tit = %str(Inpatient Stays), extr = %str(max = .020)) ;
+
+  %plot_unenrolled_rates(inset = col.enc_unenrolled, tit = %str(Encounters), rows = 1) ;
+  %plot_unenrolled_rates(inset = col.lab_unenrolled, tit = %str(Lab Results), rows = 1) ;
+  %plot_unenrolled_rates(inset = col.rx_unenrolled, tit = %str(Rx Fills), rows = 1) ;
+  %plot_unenrolled_rates(inset = col.shx_unenrolled, tit = %str(Social History), rows = 1, tot_crit = 2000) ;
+  %plot_unenrolled_rates(inset = col.tum_unenrolled, tit = %str(Tumors), rows = 1) ;
+  %plot_unenrolled_rates(inset = col.vsn_unenrolled, tit = %str(Vital Signs), rows = 1) ;
+
   title2 "Noteworthy Variables" ;
   proc report nowd data=vars ;
     define site / group ;
@@ -910,5 +1012,6 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
 
 /*
 */
- ods _all_ close ;
+
+ods _all_ close ;
 

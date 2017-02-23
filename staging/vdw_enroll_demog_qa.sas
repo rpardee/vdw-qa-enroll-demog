@@ -76,6 +76,11 @@ libname _all_ clear ;
 %let start_year = 1988 ;
 %let end_year = %sysfunc(intnx(year, "&sysdate9"d, -1, end), year4.) ;
 
+* Optional--set to a number of records or the string false to limit the number of records offending ;
+* quality checks that get written to the DO_NOT_SEND folder. ;
+%let limit_bad_output = false ;
+%let limit_bad_output = 50 ;
+
 * For the completeness graphs, what is the minimum monthly enrolled N we require ;
 * before we are willing to plot the point? ;
 %let min_n = 200 ;
@@ -130,6 +135,10 @@ libname _all_ clear ;
 %include "&root./vdw_lang_qa.sas" ;
 %include "&root./simple_data_rates_generic.sas" ;
 %include "&root./graph_data_rates.sas" ;
+
+* Acceding to the CESR convention of spitting log out to sendable folder. ;
+proc printto log = "&root/to_send/&_siteabbr._vdw_enroll_demog_qa.log" new ;
+run ;
 
 libname to_stay "&root./DO_NOT_SEND" ;
 libname to_go   "&root./to_send" ;
@@ -633,7 +642,7 @@ quit ;
   quit ;
 
   * We dont want bad_enroll to be unwieldy--remove all but 50 examples of each problem found. ;
-  data to_stay.bad_enroll (label="Records from &_vdw_enroll found wanting (SAMPLE ONLY--50 SAMPLE RECS/PROBLEM!)") ;
+  data to_stay.bad_enroll (label="Records from &_vdw_enroll found wanting (SAMPLE ONLY--&limit_bad_output SAMPLE RECS/PROBLEM!)") ;
     length num_recs 3 ;
     set to_stay.bad_enroll ;
     if _n_ = 1 then do ;
@@ -651,7 +660,12 @@ quit ;
       num_recs = 1 ;
       seen_probs.add() ;
     end ;
-    if num_recs le 50 then output ;
+    %if &limit_bad_output = false %then %do ;
+      output ;
+    %end ;
+    %else %do ;
+      if num_recs le &limit_bad_output then output ;
+    %end ;
     drop num_recs ;
   run ;
 
