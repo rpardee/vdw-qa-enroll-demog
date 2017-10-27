@@ -70,6 +70,7 @@ quit ;
     loess x = first_day y = proportion_unenrolled / lineattrs = (pattern = solid) nolegfit ;
     xaxis grid label = "Month" ;
     yaxis grid min = 0 label = "No. of &ylab for non-enrollees" ;
+    format proportion_unenrolled percent6.2 ;
   run ;
 %mend graph_unenrolled ;
 

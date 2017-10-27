@@ -47,16 +47,8 @@ options
   noovp
   mprint
   mlogic
+  options extendobscounter = no ;
 ;
-
-%macro set_opt ;
-  %if &sysver = 9.4 %then %do ;
-    options extendobscounter = no ;
-  %end ;
-
-%mend set_opt ;
-
-%set_opt ;
 
 * Undefine all libnames, just in case I rely on GHC-specific nonstandard ones downstream. ;
 libname _all_ clear ;
@@ -97,7 +89,7 @@ libname _all_ clear ;
 
   If you have the wherewithal to create this utility dataset on the db server
   where the rest of your VDW tables live, then SAS will (probably) pass the
-  join work off tothe db to complete, which is orders of magnitude faster than
+  join work off to the db to complete, which is orders of magnitude faster than
   having SAS pull your tables into temp datasets & do the join on the SAS
   side. At Group Health (we use Teradata) making this change turned a job that
   ran in about 14 hours into one that runs in 15 *minutes*.
@@ -117,6 +109,8 @@ libname _all_ clear ;
   schema            = "%sysget(username)"
   multi_datasrc_opt = in_clause
   connection        = global
+  tpt               = yes
+  fastload          = yes
 ;
 
 * %let tmplib = mylib ;
@@ -1331,15 +1325,6 @@ quit ;
 
 %macro do_all_rates ;
 
-  %get_rates(startyr  = &start_year
-            , endyr   = &end_year
-            , inset   = &_vdw_tumor
-            , datevar = dxdate
-            , incvar  = incomplete_tumor
-            , outset  = to_go.&_siteabbr._tumor_rates
-            , outunenr = to_go.&_siteabbr._tum_unenrolled
-            ) ;
-
   %get_rates(startyr    = &start_year
             , endyr     = &end_year
             , inset     = &_vdw_utilization
@@ -1347,15 +1332,6 @@ quit ;
             , incvar    = incomplete_inpt_enc
             , outset    = to_go.&_siteabbr._ute_in_rates_by_enctype
             , extra_var = coalesce(enctype, 'XX')
-            ) ;
-
-  %get_rates(startyr     = &start_year
-            , endyr      = &end_year
-            , inset      = &_vdw_lab
-            , datevar    = lab_dt
-            , incvar     = incomplete_lab
-            , outset     = to_go.&_siteabbr._lab_rates
-            , outunenr = to_go.&_siteabbr._lab_unenrolled
             ) ;
 
   %get_rates(startyr    = &start_year
@@ -1367,6 +1343,25 @@ quit ;
             , extra_var = coalesce(enctype, 'XX')
             , outunenr = to_go.&_siteabbr._enc_unenrolled
             ) ;
+
+  %get_rates(startyr  = &start_year
+            , endyr   = &end_year
+            , inset   = &_vdw_tumor
+            , datevar = dxdate
+            , incvar  = incomplete_tumor
+            , outset  = to_go.&_siteabbr._tumor_rates
+            , outunenr = to_go.&_siteabbr._tum_unenrolled
+            ) ;
+
+  %get_rates(startyr     = &start_year
+            , endyr      = &end_year
+            , inset      = &_vdw_lab
+            , datevar    = lab_dt
+            , incvar     = incomplete_lab
+            , outset     = to_go.&_siteabbr._lab_rates
+            , outunenr = to_go.&_siteabbr._lab_unenrolled
+            ) ;
+
   %get_rates(startyr  = &start_year
             , endyr   = &end_year
             , inset   = &_vdw_vitalsigns
@@ -1380,7 +1375,7 @@ quit ;
   %get_rates(startyr  = &start_year
             , endyr   = &end_year
             , inset   = &_vdw_social_hx
-            /* , extrawh = %str(AND gh_source = 'C') */
+            /* , extrawh = %str(AND kpwa_source = 'C') */
             , datevar = contact_date
             , incvar  = incomplete_emr
             , outset  = to_go.&_siteabbr._emr_s_rates
@@ -1397,10 +1392,10 @@ quit ;
             ) ;
 %mend do_all_rates ;
 
-/*
-*/
 
 %check_vars ;
+/*
+*/
 %demog_tier_one ;
 %lang_tier_one; *pjh19401;
 %enroll_tier_one ;
@@ -1443,6 +1438,9 @@ ods rtf file = "%sysfunc(pathname(to_stay))/&_siteabbr._vdw_enroll_demog_qa.rtf"
   quit ;
 
   title2 "Tier 1.5 Checks" ;
+
+/*
+*/
   %enroll_tier_one_point_five(outset = to_go.&_siteabbr._enroll_freqs) ;
   %demog_tier_one_point_five(outset = to_go.&_siteabbr._demog_freqs) ;
   %draw_heatmap ;
@@ -1488,7 +1486,7 @@ ods rtf file = "%sysfunc(pathname(to_stay))/&_siteabbr._vdw_enroll_demog_qa.rtf"
                 , ylab = EMR Data (Vital Signs)
                 ) ;
 
-  title2 "Counts of Data Events for people not appearing in the Enrollment Table" ;
+  title2 "Counts of Data Events outside of Enrollment Periods" ;
 
   %graph_unenrolled(inset = to_go.&_siteabbr._rx_unenrolled , ylab = %str(Pharmacy fills)) ;
   %graph_unenrolled(inset = to_go.&_siteabbr._enc_unenrolled, ylab = %str(Encounters)) ;

@@ -21,7 +21,7 @@ quit ;
 
 %macro gen_months(startyr = 2000, endyr = 2014, outset = months) ;
   %* Utility macro--just spits out a dset of months. ;
-  data &outset ;
+  data __mos ;
     do yr = &startyr to &endyr ;
       do mo = 1 to 12 ;
         first_day = mdy(mo, 1, yr) ;
@@ -33,6 +33,9 @@ quit ;
       first_day
       last_day mmddyy10.
     ;
+  run ;
+  data &outset ;
+    set __mos ;
   run ;
 %mend gen_months ;
 
