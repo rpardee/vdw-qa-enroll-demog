@@ -9,29 +9,21 @@
 * Collates the comprehensive QA result data & produces a cross-site report.
 *********************************************/
 
-%include "\\home\pardre1\SAS\Scripts\remoteactivate.sas" ;
-%macro set_opt ;
-  %if &sysver = 9.4 %then %do ;
-    options extendobscounter = no ;
-  %end ;
-
-%mend set_opt ;
-
-%set_opt ;
-
-%let GHRIDW_ROOT = //ghcmaster/ghri/warehouse ;
-%include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/standard_macros.sas" ;
+%include "h:/SAS/Scripts/remoteactivate.sas" ;
 
 options
   linesize  = 150
+  pagesize  = 80
   msglevel  = i
   formchar  = '|-++++++++++=|-/|<>*'
   dsoptions = note2err
   nocenter
   noovp
   nosqlremerge
-  mprint
+  extendobscounter = no
 ;
+
+%include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/standard_macros.sas" ;
 
 libname raw "\\groups\data\CTRHS\Crn\voc\enrollment\programs\qa_results\raw" ;
 libname col "\\groups\data\CTRHS\Crn\voc\enrollment\programs\qa_results" ;
@@ -50,7 +42,7 @@ proc format cntlout = sites ;
     'HPHC' = 'Harvard'
     'HPI'  = 'HealthPartners'
     'MCRF' = 'Marshfield'
-    'SWH'  = 'Baylor Scott & White'
+    'BSWH' = 'Baylor Scott & White'
     'HFHS' = 'Henry Ford'
     'GHS'  = 'Geisinger'
     'GHC'  = 'KP Washington'
@@ -235,7 +227,7 @@ run ;
   %stack_datasets(inlib = raw, nom = &which._unenrolled, outlib = col) ;
   data col.&which._unenrolled ;
     set col.&which._unenrolled ;
-    calc_prop_unenrolled = n_unenrolled / n_total ;
+    if n_total then calc_prop_unenrolled = n_unenrolled / n_total ;
   run ;
 
 %mend stack_and_calc ;
@@ -457,7 +449,30 @@ run ;
   run ;
 %mend misc_wrangling ;
 
+%macro pre_fix ;
+  * These came through with a numeric for the var extra--FIX THIS!!! ;
+  * data raw.hphc_ute_in_rates_by_enctype ;
+  *   set raw.hphc_ute_in_rates_by_enctype(drop = extra) ;
+  *   extra = '-1' ;
+  * run ;
+  * data raw.hphc_ute_out_rates_by_enctype ;
+  *   set raw.hphc_ute_out_rates_by_enctype(drop = extra) ;
+  *   extra = '-1' ;
+  * run ;
+
+  data raw.pamf_ute_in_rates_by_enctype ;
+    set raw.pamf_ute_in_rates_by_enctype(drop = extra) ;
+    extra = '-1' ;
+  run ;
+  data raw.pamf_ute_out_rates_by_enctype ;
+    set raw.pamf_ute_out_rates_by_enctype(drop = extra) ;
+    extra = '-1' ;
+  run ;
+
+%mend pre_fix ;
+
 %macro regen() ;
+  %pre_fix ;
   %do_results ;
   %do_vars ;
   %do_freqs(nom = enroll_freqs, byvar = year) ;
@@ -575,9 +590,9 @@ run ;
   run ;
 
   %local th B sz ;
-  %let th = .03 CM ;
+  %let th = .07 CM ;
   %let B = .25 ;
-  %let sz = .1 CM ;
+  %let sz = .3 CM ;
   ods graphics / imagename = "enroll_counts" ;
   title2 "Enrollee Counts Over Time (larger sites plotted against right-hand y-axis)" ;
   proc sgplot data = ax nocycleattrs ;
@@ -652,7 +667,7 @@ run ;
                                                 yerrorupper = duration_p75
                                             errorbarattrs = (thickness = .7mm)
                                                 datalabel = site
-                                                datalabelattrs = (size = 2mm)
+                                                datalabelattrs = (size = 4mm)
                                                 markerattrs = (symbol = circlefilled size = 3mm)
                                                 ;
     xaxis grid type = log label = "Total no. person-years (log scale)"; * values = (&earliest to "31dec2010"d by month ) ;
@@ -682,25 +697,25 @@ run ;
   run ;
 
   * ROY--REMOVE THIS!!! ;
-  ods graphics / imagename = "delete_me" ;
-  title3 "Incomplete_* vars--implementing sites only" ;
-  proc sgpanel data = gnu ;
-    panelby site / novarname uniscale = column columns = 3 rows = 3 ;
-    series x = year y = pct / group = value lineattrs = (thickness = &th pattern = solid) ;
-    colaxis grid ;
-    rowaxis grid ;
-    by vcat var_name ;
-    where var_name like 'incomplete_%' and site in ('Geisinger'
-                                              , 'KP Washington'
-                                              , 'KP Colorado'
-                                              , "KP Northern California"
-                                              , "KP Hawaii"
-                                              , 'KP Northwest'
-                                              , "KP Southern California"
-                                              , 'Harvard'
-                                              , 'Marshfield') ;
-    format var_name $vars. pct percent8.0 ;
-  run ;
+  * ods graphics / imagename = "delete_me" ;
+  * title3 "Incomplete_* vars--implementing sites only" ;
+  * proc sgpanel data = gnu ;
+  *   panelby site / novarname uniscale = column columns = 3 rows = 3 ;
+  *   series x = year y = pct / group = value lineattrs = (thickness = &th pattern = solid) ;
+  *   colaxis grid ;
+  *   rowaxis grid ;
+  *   by vcat var_name ;
+  *   where var_name like 'incomplete_%' and site in ('Geisinger'
+  *                                             , 'KP Washington'
+  *                                             , 'KP Colorado'
+  *                                             , "KP Northern California"
+  *                                             , "KP Hawaii"
+  *                                             , 'KP Northwest'
+  *                                             , "KP Southern California"
+  *                                             , 'Harvard'
+  *                                             , 'Marshfield') ;
+  *   format var_name $vars. pct percent8.0 ;
+  * run ;
 %mend report ;
 
 %macro report_demog() ;
@@ -829,7 +844,7 @@ run ;
   ods graphics / imagename = "ins_plan_corr" ;
   proc sgrender data = &inset template = corrHeatmap ;
     by site ;
-    where site not in ("&allnulls") ;
+    where site not in ("&allnulls", 'HFHS') ; /* hard-coding henry ford b/c when we have them it produces a weird java error. */
     format site $s. ;
   run;
 
@@ -837,7 +852,6 @@ run ;
 %mend report_correlations ;
 
 %regen ;
-
 * endsas ;
 
 ods listing close ;
@@ -915,7 +929,7 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
   quit ;
 %mend overview ;
 
-%macro plot_data_rates(inset = col.rx_rates, incvar = incomplete_outpt_rx, tit = %str(Outpatient Pharmacy), extr = , rows = 3) ;
+%macro plot_data_rates(inset = col.rx_rates, incvar = incomplete_outpt_rx, tit = %str(Outpatient Pharmacy), extr = , rows = 4) ;
 
   proc sort data = &inset out = gnu ;
     by site first_day &incvar ;
@@ -948,15 +962,13 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
 
   title2 "Proportion of &tit records for people not enrolled at the time." ;
   proc sgpanel data = gnu ;
-    panelby site / novarname columns = 3 rows = &rows ;
+    panelby site / novarname columns = 4 rows = &rows ;
     loess x = first_day y = calc_prop_unenrolled / nolegfit ;
-    format site $s. ;
+    format site $s. calc_prop_unenrolled percent6.1 ;
     rowaxis grid display = (nolabel) ;
     colaxis grid display = (nolabel) ;
   run ;
 %mend plot_unenrolled_rates ;
-
-
 
   %overview ;
 
@@ -990,18 +1002,20 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
   %plot_data_rates(inset = col.rx_rates   , incvar = incomplete_outpt_rx, tit = %str(Outpatient Pharmacy)        ) ;
   %plot_data_rates(inset = col.lab_rates  , incvar = incomplete_lab     , tit = %str(Lab Results)                ) ;
   %plot_data_rates(inset = col.tumor_rates, incvar = incomplete_tumor   , tit = %str(Tumor)                      , extr = %str(max = 0.0015), rows = 3) ;
-  %plot_data_rates(inset = col.emr_s_rates  , incvar = incomplete_emr     , tit = %str(EMR Data (Social History))  ) ;
-  %plot_data_rates(inset = col.emr_v_rates  , incvar = incomplete_emr     , tit = %str(EMR Data (Vital Signs))  ) ;
+  %plot_data_rates(inset = col.emr_s_rates, incvar = incomplete_emr     , tit = %str(EMR Data (Social History))  ) ;
+  %plot_data_rates(inset = col.emr_v_rates, incvar = incomplete_emr     , tit = %str(EMR Data (Vital Signs))  , extr = %str(max = 1.6)) ;
 
   %plot_data_rates(inset = col.ute_out_rates_by_enctype (where = (extra = 'AV')) , incvar = incomplete_outpt_enc , tit = %str(Ambulatory Visits), extr = %str(max = 2)) ;
   %plot_data_rates(inset = col.ute_in_rates_by_enctype  (where = (extra = 'IP')) , incvar = incomplete_inpt_enc  , tit = %str(Inpatient Stays), extr = %str(max = .020)) ;
 
-  %plot_unenrolled_rates(inset = col.enc_unenrolled, tit = %str(Encounters), rows = 1) ;
-  %plot_unenrolled_rates(inset = col.lab_unenrolled, tit = %str(Lab Results), rows = 1) ;
-  %plot_unenrolled_rates(inset = col.rx_unenrolled, tit = %str(Rx Fills), rows = 1) ;
-  %plot_unenrolled_rates(inset = col.shx_unenrolled, tit = %str(Social History), rows = 1, tot_crit = 2000) ;
-  %plot_unenrolled_rates(inset = col.tum_unenrolled, tit = %str(Tumors), rows = 1) ;
-  %plot_unenrolled_rates(inset = col.vsn_unenrolled, tit = %str(Vital Signs), rows = 1) ;
+  %let unrows = 4 ;
+
+  %plot_unenrolled_rates(inset = col.enc_unenrolled, tit = %str(Encounters), rows  = &unrows, tot_crit = 1000) ;
+  %plot_unenrolled_rates(inset = col.lab_unenrolled, tit = %str(Lab Results), rows = 3, tot_crit = 1000) ;
+  %plot_unenrolled_rates(inset = col.rx_unenrolled, tit = %str(Rx Fills), rows  = &unrows, tot_crit = 1000) ;
+  %plot_unenrolled_rates(inset = col.shx_unenrolled, tit = %str(Social History), rows  = &unrows, tot_crit  = 2000) ;
+  %plot_unenrolled_rates(inset = col.vsn_unenrolled (where = (site not in ('BSWH', 'HPHC'))), tit = %str(Vital Signs), rows  = &unrows, tot_crit = 1000) ;
+  %plot_unenrolled_rates(inset = col.tum_unenrolled (where = (site not in ('BSWH', 'HPHC', 'PAMF'))), tit = %str(Tumors), rows = 3, tot_crit = 5) ;
 
   title2 "Noteworthy Variables" ;
   proc report nowd data=vars ;

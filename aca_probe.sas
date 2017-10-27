@@ -4,29 +4,30 @@
 * (206) 287-2078
 * pardee.r@ghc.org
 *
-* C:\Users/pardre1/Documents/vdw/Enrollment/supporting_files/aca_probe.sas
+* //groups/data/CTRHS/Crn/voc/enrollment/programs/aca_probe.sas
 *
 * What do the enrollment #s look like across the 1-jan-2014 Affordable Care Act seam?
 *********************************************/
 
-%include "\\home\pardre1\SAS\Scripts\remoteactivate.sas" ;
+%include "h:/SAS/Scripts/remoteactivate.sas" ;
 
 options
   linesize  = 150
+  pagesize  = 80
   msglevel  = i
   formchar  = '|-++++++++++=|-/|<>*'
   dsoptions = note2err
   nocenter
   noovp
   nosqlremerge
+  extendobscounter = no
 ;
 
 * Output lib--change this to something that works at your site ;
 libname s "//home/pardre1/workingdata/" ;
 
-
 * Put your stdvars ref here: ;
-%include "//ghrisas/Warehouse/Sasdata/CRN_VDW/lib/StdVars_Teradata.sas" ;
+%include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/StdVars.sas" ;
 
 %macro probe_diffs(outset = s.combos) ;
 
@@ -92,7 +93,7 @@ libname s "//home/pardre1/workingdata/" ;
       label
         &outset._combos = "[P]rivatepay Medicai[D] [C]ommercial Medica[R]e [S]elffunded Statesu[B]sidized [H]ighdeductible"
       ;
-      keep mrn ins_type &outset._combos ;
+      keep mrn ins_type spark &outset._combos ;
     run ;
 
     * There should be no dupes here, but JIC. ;
@@ -106,8 +107,8 @@ libname s "//home/pardre1/workingdata/" ;
 
   data &outset ;
     merge
-      dec_2013 (rename = (ins_type = type_2013))
-      jan_2014 (rename = (ins_type = type_2014))
+      dec_2013 (rename = (ins_type = type_2013 spark = spark_2013))
+      jan_2014 (rename = (ins_type = type_2014 spark = spark_2014))
     ;
     by mrn ;
     label
@@ -118,6 +119,7 @@ libname s "//home/pardre1/workingdata/" ;
 
   proc freq data = &outset ;
     tables type_2013 * type_2014 / missing format = comma9.0 out = s.drop_me ;
+    tables spark_: / missing format = comma9.0 ;
     format type_: it. ;
     * where not (type_2013 = 4 or type_2013 = 4) ;
   run ;
@@ -140,7 +142,7 @@ ods html path = "&out_folder" (URL=NONE)
           ;
 
 
-%probe_diffs(outset = aca_diffs) ;
+%probe_diffs(outset = s.aca_diffs) ;
 
 
 run ;
