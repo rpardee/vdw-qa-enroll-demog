@@ -472,7 +472,7 @@ run ;
 %mend pre_fix ;
 
 %macro regen() ;
-  %pre_fix ;
+  * %pre_fix ;
   %do_results ;
   %do_vars ;
   %do_freqs(nom = enroll_freqs, byvar = year) ;
@@ -888,9 +888,6 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
     where libname = 'RAW' and memname like '%_TIER_ONE_RESULTS'
     ;
 
-    * For now we dummy out CHI ;
-    insert into submitting_sites (site) values ('Catholic Health Init') ;
-
     create table col.submitting_sites as
     select * from submitting_sites
     ;
@@ -927,6 +924,16 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
     order by 7
     ;
   quit ;
+
+  title2 "Tier One--Results By Implementing Site" ;
+  proc report data = col.norm_tier_one_results ;
+    column sitename table, result ;
+    define sitename / group 'Site' ;
+    define table  / '' across ; *format = $tb. ;
+    define result / '' across order = freq descending ; * format = $res. ;
+    where table ne 'All' ;
+  quit ;
+
 %mend overview ;
 
 %macro plot_data_rates(inset = col.rx_rates, incvar = incomplete_outpt_rx, tit = %str(Outpatient Pharmacy), extr = , rows = 4) ;

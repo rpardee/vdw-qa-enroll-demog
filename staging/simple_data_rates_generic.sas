@@ -58,7 +58,7 @@ quit ;
   %gen_months(startyr = &startyr, endyr = &endyr, outset = &tmplib..inflate_months) ;
 
   * If the inset dataset does not exist, create a null output dset and go home ;
-  %if %sysfunc(exist(&inset)) %then %do ;
+  %if %sysfunc(exist(&inset)) OR %sysfunc(exist(&inset,VIEW)) %then %do ;
     %* nothing ;
   %end ;
   %else %do ;

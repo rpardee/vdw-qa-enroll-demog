@@ -20,23 +20,14 @@ options
   nocenter
   noovp
   nosqlremerge
+  options extendobscounter = no ;
   /* dsoptions   = note2err */
   /* sastrace    = ',,,d' */
   /* sastraceloc = saslog */
 ;
-%macro set_opt ;
-  %if &sysver = 9.4 %then %do ;
-    options extendobscounter = no ;
-  %end ;
-
-%mend set_opt ;
-
-%set_opt ;
 
 * Please change this to point to your local copy of StdVars.sas ;
 %include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/StdVars_Teradata.sas" ;
-* Temporarily point this at the candidate table. ;
-%let _vdw_enroll = __tdvdw.enroll ;
 
 * Please change this to the location where you unzipped this package. ;
 %let root = \\groups\data\CTRHS\Crn\voc\enrollment\programs\completeness ;
