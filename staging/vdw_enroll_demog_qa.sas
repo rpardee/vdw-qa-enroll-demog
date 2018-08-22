@@ -17,6 +17,9 @@
 
   TODO:
     - integrate dec -> jan enrollee count * insurance type
+    - swap to counts of member/months rather than records
+    - add detailed list of warns/fails to output report.
+      - with link to issue tracker!
 
 */
 
@@ -61,17 +64,18 @@ libname _all_ clear ;
 
 * Some sites are having trouble w/the calls to SGPlot--if you want to try to get the graphs please set this var to false. ;
 * If you do and get errors, please keep it set to true. ;
-%let skip_graphs = true ;
 %let skip_graphs = false ;
+%let skip_graphs = true ;
 
 * Please set start_year to your earliest date of enrollment data. ;
 %let start_year = 1988 ;
 %let end_year = %sysfunc(intnx(year, "&sysdate9"d, -1, end), year4.) ;
+%let end_year = 2018 ;
 
 * Optional--set to a number of records or the string false to limit the number of records offending ;
 * quality checks that get written to the DO_NOT_SEND folder. ;
-%let limit_bad_output = false ;
 %let limit_bad_output = 50 ;
+%let limit_bad_output = false ;
 
 * For the completeness graphs, what is the minimum monthly enrolled N we require ;
 * before we are willing to plot the point? ;
@@ -142,8 +146,8 @@ proc sql ;
    ( description  char(80) label = "Description"
    , qa_macro     char(30) label = "Name of the macro that does this check"
    , detail_dset  char(40) label = "Look for further details in this dataset"
-   , num_bad      numeric  label = "For record-based checks, how many records offend the spec?" format = comma14.0
-   , percent_bad  numeric  label = "For record-based checks, bad records are what % of total?"  format = 8.2
+   , num_bad      numeric  label = "For record (or MY)-based checks, how many records (or MYs) offend the spec?" format = comma14.0
+   , percent_bad  numeric  label = "For record (or MY)-based checks, bad records (or MYs) are what % of total?"  format = 8.2
    , result       char(8)  label = "Result"
    )
   ;
@@ -359,6 +363,7 @@ quit ;
       den_val $ 1
       frq 5
     ;
+    retain tot_member_years 0 ;
     set &inset end = alldone ;
     if _n_ = 1 then do ;
       * Define a hash to hold all the MRN values we see, so we can check it against the ones in demog ;
@@ -382,6 +387,11 @@ quit ;
     * Periods gets everything. ;
     rid = _n_ ;
     output periods ;
+
+    * Now many years are covered on this record? ;
+    period_length = intck('day', enr_start, enr_end) / 365.25 ;
+    * Cumulate this number of days so we can read into macro var at the end of the dstep. ;
+    tot_member_years = tot_member_years + period_length ;
 
     * For flag correlation heatmap ;
     array ins ins_commercial ins_highdeductible ins_medicaid ins_medicare ins_medicare_a ins_medicare_b ins_medicare_c ins_medicare_d ins_other ins_privatepay ins_selffunded ins_statesubsidized plan_hmo plan_pos plan_ppo plan_indemnity ;
@@ -496,8 +506,9 @@ quit ;
     if alldone then do ;
       rc = mrns.output(dataset:"enroll_mrns") ;
       rc = denvals.output(dataset:"denvals") ;
+      call symput('tot_member_years', round(tot_member_years, 1.0)) ;
     end ;
-    drop i rc alldone den_var den_val frq ;
+    drop i rc alldone den_var den_val frq tot_member_years ;
   run ;
 
   %prepCorrData(in=tmpcorr(keep = wt flg_:), out=&outcorr) ;
@@ -569,7 +580,7 @@ quit ;
     select count(*) as num_enroll_recs into :num_enroll_recs from &inset ;
 
     create table bad_enroll_summary as
-    select   problem, count(*) as num_bad, (count(*) / &num_enroll_recs) * 100 as percent_bad
+    select   problem, sum(period_length) as num_bad, (sum(period_length) / &tot_member_years) * 100 as percent_bad
     from to_stay.bad_enroll
     group by problem
     ;
@@ -613,17 +624,32 @@ quit ;
         , p1.enr_end   as end1
         , p2.enr_start as start2
         , p2.enr_end   as end2
+        , intck('day', p1.enr_start, p2.enr_end) as cand1 /* which of these is correct depends on sort order--take the min below. */
+        , intck('day', p2.enr_start, p1.enr_end) as cand2 /* which of these is correct depends on sort order--take the min below. */
         , (p1.enr_start lt p2.enr_end AND
-          p1.enr_end   gt p2.enr_start) as overlap
+           p1.enr_end   gt p2.enr_start) as overlap
     from  periods as p1 INNER JOIN
           periods as p2
     on    p1.mrn = p2.mrn
-    where (p1.rid > p2.rid)
-          AND (p1.enr_start le p2.enr_end AND p1.enr_end  ge p2.enr_start)
+    where (p1.rid gt p2.rid)
+          AND (p1.enr_start lt p2.enr_end AND p1.enr_end gt p2.enr_start)
     ;
-    %if &sqlobs > 0 %then %do ;
+  quit ;
+
+  data to_stay.overlapping_periods ;
+    set to_stay.overlapping_periods ;
+    years_overlap = min(cand1, cand2) / 365.25 ;
+    drop cand1 cand2 ;
+  run ;
+
+  proc sql ;
+    select sum(years_overlap) into :my_overlap
+    from to_stay.overlapping_periods
+    ;
+
+    %if &my_overlap > 0 %then %do ;
       insert into results (description, qa_macro, detail_dset, num_bad, percent_bad, result)
-      values ('Do enrollment periods overlap?', '%enroll_tier_one', 'to_stay.overlapping_periods',  &sqlobs, %sysevalf(&sqlobs / &num_enroll_recs), 'fail')
+      values ('Do enrollment periods overlap?', '%enroll_tier_one', 'to_stay.overlapping_periods',  &my_overlap, %sysevalf(&my_overlap / &tot_member_years), 'fail')
       ;
     %end ;
     %else %do ;
@@ -1394,12 +1420,10 @@ quit ;
 
 
 %check_vars ;
-/*
-*/
 %demog_tier_one ;
 %lang_tier_one; *pjh19401;
-%enroll_tier_one ;
 %make_denoms ;
+%enroll_tier_one ;
 
 data to_stay.demog_checks ;
   set demog_checks ;
@@ -1408,6 +1432,7 @@ run ;
 data to_stay.erbr_checks ;
   set erbr_checks ;
 run ;
+
 data to_go.&_siteabbr._tier_one_results ;
   set results ;
 run ;

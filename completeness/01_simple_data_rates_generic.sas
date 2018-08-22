@@ -34,7 +34,7 @@ options
 
 * Years over which you want rate data ;
 %let start_year = 2010 ;
-%let end_year   = 2015 ; * <-- best to use last complete year ;
+%let end_year   = 2017 ; * <-- best to use last complete year ;
 
 /*
 
@@ -86,6 +86,7 @@ proc format ;
     "N" = "Not Suspected Incomplete"
     "X" = "Not Implemented"
     "M" = "Molina"
+    "G" = "GH Medicaid"
   other = "Unknown"
   ;
 quit ;
@@ -125,7 +126,7 @@ quit ;
   proc sql ;
     create table summarized as
     select i.first_day length = 4
-          , e.&incvar
+          , case e.ins_medicaid when 'Y' then 'G' when 'E' then 'M' else e.&incvar end as &incvar
           , &extra_var   as extra
           , count(distinct e.mrn) as n
           , sum(case when r.mrn is null then 0 else 1 end) as num_events
@@ -149,7 +150,7 @@ quit ;
   %else %do ;
     create table true_denoms as
     select i.first_day length = 4
-          , e.&incvar
+          , case e.ins_medicaid when 'Y' then 'G' when 'E' then 'M' else e.&incvar end as &incvar
           , count(distinct e.mrn) as n
     from  &tmplib..inflate_months as i LEFT JOIN
           &enrlset as e
@@ -206,6 +207,16 @@ quit ;
 
 %mend get_rates ;
 
+options mprint ;
+/*
+%get_rates(startyr     = &start_year
+          , endyr      = &end_year
+          , inset      = &_vdw_lab
+          , datevar    = lab_dt
+          , incvar     = incomplete_lab
+          , outset     = out.&_siteabbr._lab_rates
+          ) ;
+
 %get_rates(startyr  = &start_year
           , endyr   = &end_year
           , inset   = &_vdw_tumor
@@ -214,30 +225,6 @@ quit ;
           , outset  = out.&_siteabbr._tumor_rates
           ) ;
 
-%get_rates(startyr    = &start_year
-          , endyr     = &end_year
-          , inset     = &_vdw_utilization
-          , datevar   = adate
-          , incvar    = incomplete_inpt_enc
-          , outset    = out.&_siteabbr._ute_in_rates_by_enctype
-          , extra_var = coalesce(enctype, 'XX')
-          ) ;
-
-%get_rates(startyr     = &start_year
-          , endyr      = &end_year
-          , inset      = &_vdw_lab
-          , datevar    = lab_dt
-          , incvar     = incomplete_lab
-          , outset     = out.&_siteabbr._lab_rates
-          ) ;
-%get_rates(startyr    = &start_year
-          , endyr     = &end_year
-          , inset     = &_vdw_utilization
-          , datevar   = adate
-          , incvar    = incomplete_outpt_enc
-          , outset    = out.&_siteabbr._ute_out_rates_by_enctype
-          , extra_var = coalesce(enctype, 'XX')
-          ) ;
 %get_rates(startyr  = &start_year
           , endyr   = &end_year
           , inset   = &_vdw_vitalsigns
@@ -246,11 +233,10 @@ quit ;
           , incvar  = incomplete_emr
           , outset  = out.&_siteabbr._emr_v_rates
           ) ;
-
 %get_rates(startyr  = &start_year
           , endyr   = &end_year
           , inset   = &_vdw_social_hx
-          , extrawh = %str(AND gh_source = 'C')
+          , extrawh = %str(AND kpwa_source = 'C')
           , datevar = contact_date
           , incvar  = incomplete_emr
           , outset  = out.&_siteabbr._emr_s_rates
@@ -263,4 +249,21 @@ quit ;
           , incvar  = incomplete_outpt_rx
           , outset  = out.&_siteabbr._rx_rates
           ) ;
+ */
+%get_rates(startyr    = &start_year
+          , endyr     = &end_year
+          , inset     = &_vdw_utilization
+          , datevar   = adate
+          , incvar    = incomplete_inpt_enc
+          , outset    = out.&_siteabbr._ute_in_rates_by_enctype
+          , extra_var = coalesce(enctype, 'XX')
+          ) ;
 
+%get_rates(startyr    = &start_year
+          , endyr     = &end_year
+          , inset     = &_vdw_utilization
+          , datevar   = adate
+          , incvar    = incomplete_outpt_enc
+          , outset    = out.&_siteabbr._ute_out_rates_by_enctype
+          , extra_var = coalesce(enctype, 'XX')
+          ) ;

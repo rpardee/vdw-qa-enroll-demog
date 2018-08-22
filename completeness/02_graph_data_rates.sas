@@ -34,7 +34,7 @@ options
 * Used to elide points for which the rate figures are unstable/implausible due to low N. ;
 %let min_n = 200 ;
 
-%let vers = ema ;
+%let vers = molina ;
 * ============== END EDIT SECTION ========================= ;
 
 libname out "&root./to_send/&vers._version" ;

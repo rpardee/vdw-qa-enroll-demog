@@ -257,7 +257,7 @@ run ;
   %stack_and_calc(which = tum) ;
   %stack_and_calc(which = vsn) ;
 
-  proc sort data = tier_one_results(drop = detail_dset num_bad) ;
+  proc sort data = tier_one_results(drop = detail_dset) ;
     by qa_macro description site ;
   run ;
 
@@ -812,6 +812,9 @@ run ;
     ;
   quit ;
 
+  * From https://support.sas.com/techsup/notes/v8/4/739.html ;
+  ods path(prepend) work.templat(update);
+
   proc template;
     define statgraph corrHeatmap;
      dynamic _BYVAL_ ;
@@ -851,7 +854,7 @@ run ;
   options byline ;
 %mend report_correlations ;
 
-%regen ;
+* %regen ;
 * endsas ;
 
 ods listing close ;
@@ -897,7 +900,7 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
   ods graphics / imagename = "submitting_sites" ;
   proc sgplot data = submitting_sites ;
     dot site / response = date_submitted ;
-    xaxis grid ; * values = ("01-feb-2014"d to "01-mar-2015"d by month) ;
+    xaxis grid ; * min='04-mar-2017'd ;
   run ;
 
   proc sql number ;
@@ -910,6 +913,12 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
     reset nonumber ;
     ods rtf ;
 
+    create table nonnegligible_nonpasses as
+    select *
+    from col.norm_tier_one_results
+    where result not in ('pass') AND (round(percent_bad, .01) > 0 OR percent_bad is null)
+    ;
+
     title2 "Tier One--checks that tripped any failures or warnings" ;
     select description
           , warn_lim / 100 format = thrs. label = "Warn Threshold"
@@ -919,20 +928,35 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
           , sum(case when result = 'pass' then 1 else 0 end) as num_passes label = "Passes"
           , sum(case when result = 'pass' then 1 else 0 end) / count(*) as pct_passes label = "Percent of Sites Passing" format = percent6.0
     from col.norm_tier_one_results
-    where description in (select description from col.norm_tier_one_results where result not in ('pass'))
+    where description in (select description from nonnegligible_nonpasses)
     group by description, warn_lim, fail_lim
     order by 7
     ;
   quit ;
 
-  title2 "Tier One--Results By Implementing Site" ;
-  proc report data = col.norm_tier_one_results ;
-    column sitename table, result ;
+  title2 "Tier One--Non-Passes By Implementing Site" ;
+  * proc report data = col.norm_tier_one_results ;
+  *   column sitename table, result ;
+  *   define sitename / group 'Site' ;
+  *   define table  / '' across ; *format = $tb. ;
+  *   define result / '' across order = freq descending ; * format = $res. ;
+  *   where table ne 'All' ;
+  * quit ;
+
+  * ods rtf exclude all ;
+
+  proc report data = nonnegligible_nonpasses ;
+    column sitename table description result num_bad percent_bad ;
     define sitename / group 'Site' ;
-    define table  / '' across ; *format = $tb. ;
-    define result / '' across order = freq descending ; * format = $res. ;
-    where table ne 'All' ;
+    define table / 'Table' ;
+    define description / 'Check' ;
+    define result / 'Result' ;
+    define num_bad / 'No. recs offending' ;
+    define percent_bad / 'Pct. recs offending' ;
+    where result ne 'pass' ;
   quit ;
+
+  ods rtf ;
 
 %mend overview ;
 
@@ -940,7 +964,7 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
 
   proc sort data = &inset out = gnu ;
     by site first_day &incvar ;
-    where n gt 200 /* and rate gt 0 */ ;
+    where n gt 200 /* and rate gt 0 */ and first_day ge '01-jan-1986'd ;
   run ;
 
   ods graphics / imagename = "&incvar" ;

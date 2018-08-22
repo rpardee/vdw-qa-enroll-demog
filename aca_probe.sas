@@ -102,30 +102,30 @@ libname s "//home/pardre1/workingdata/" ;
     run ;
   %mend get_mo ;
 
-  %get_mo(15-dec-2013, dec_2013) ;
-  %get_mo(15-jan-2014, jan_2014) ;
+  %get_mo(15-dec-2017, dec_2017) ;
+  %get_mo(15-jan-2018, jan_2018) ;
 
   data &outset ;
     merge
-      dec_2013 (rename = (ins_type = type_2013 spark = spark_2013))
-      jan_2014 (rename = (ins_type = type_2014 spark = spark_2014))
+      dec_2017 (rename = (ins_type = type_2017 spark = spark_2017))
+      jan_2018 (rename = (ins_type = type_2018 spark = spark_2018))
     ;
     by mrn ;
     label
-      type_2013 = "Insurance Type in December 2013"
-      type_2014 = "Insurance Type in January 2014"
+      type_2017 = "Insurance Type in December 2017"
+      type_2018 = "Insurance Type in January 2018"
     ;
   run ;
 
   proc freq data = &outset ;
-    tables type_2013 * type_2014 / missing format = comma9.0 out = s.drop_me ;
+    tables type_2017 * type_2018 / missing format = comma9.0 out = s.drop_me ;
     tables spark_: / missing format = comma9.0 ;
     format type_: it. ;
-    * where not (type_2013 = 4 or type_2013 = 4) ;
+    * where not (type_2017 = 4 or type_2017 = 4) ;
   run ;
 
   * proc freq data = &outset order = freq ;
-  *   tables jan_2013_combos * type_2013 / list missing format = comma9.0 ;
+  *   tables jan_2017_combos * type_2017 / list missing format = comma9.0 ;
   *   format type_: it. ;
   * run ;
 
@@ -142,7 +142,7 @@ ods html path = "&out_folder" (URL=NONE)
           ;
 
 
-%probe_diffs(outset = s.aca_diffs) ;
+%probe_diffs(outset = s.churn_17_18) ;
 
 
 run ;
@@ -153,6 +153,6 @@ ods _all_ close ;
 
 options mprint ;
 /*
-%aca_denoms(to_date = 30-aug-2014) ;
+%aca_denoms(to_date = 30-aug-2018) ;
 %plot_denoms ;
  */
