@@ -871,16 +871,17 @@ ods html path = "&out_folder" (URL=NONE)
          nogfootnote
           ;
 
-ods rtf file = "&out_folder.enroll_demog_qa.rtf"
+ods tagsets.rtf file = "&out_folder.enroll_demog_qa.rtf"
         device = sasemf
         nogfootnote
-        style = magnify
+        style = daisy
         ;
 
   * footnote1 "* SDM Advises their E/D data is still under active development." ;
 
   title1 "Enrollment/Demographics QA Report" ;
 
+* footnote2 height = 10pt "^R/HTML'See <a href="" target=""_blank"">the VDW Issue Tracker</a> for current status on all issues." ;
 %macro overview ;
   proc sql number ;
     * describe table dictionary.tables ;
@@ -905,13 +906,13 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
 
   proc sql number ;
     * The full table is way too wide for the rtf output--cut it out of there. ;
-    ods rtf exclude all ;
+    ods tagsets.rtf exclude all ;
 
     title2 "Tier One (objective) checks--overall" ;
     select * from col.tier_one_results (drop = qa_macro) ;
 
     reset nonumber ;
-    ods rtf ;
+    ods tagsets.rtf ;
 
     create table nonnegligible_nonpasses as
     select *
@@ -933,6 +934,8 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
     order by 7
     ;
   quit ;
+  ods tagsets.rtf text = "See the VDW Issue Tracker for current status on all issues" ;
+  ods tagsets.rtf text = "https://www.hcsrn.org/share/page/site/VDW/data-lists?list=f3c5ef15-334b-47f4-b6d3-aee37bedc057" ;
 
   title2 "Tier One--Non-Passes By Implementing Site" ;
   * proc report data = col.norm_tier_one_results ;
@@ -943,7 +946,7 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
   *   where table ne 'All' ;
   * quit ;
 
-  * ods rtf exclude all ;
+  * ods tagsets.rtf exclude all ;
 
   proc report data = nonnegligible_nonpasses ;
     column sitename table description result num_bad percent_bad ;
@@ -955,8 +958,10 @@ ods rtf file = "&out_folder.enroll_demog_qa.rtf"
     define percent_bad / 'Pct. recs offending' ;
     where result ne 'pass' ;
   quit ;
+  ods tagsets.rtf text = "See the VDW Issue Tracker for current status on all issues" ;
+  ods tagsets.rtf text = "https://www.hcsrn.org/share/page/site/VDW/data-lists?list=f3c5ef15-334b-47f4-b6d3-aee37bedc057" ;
 
-  ods rtf ;
+  ods tagsets.rtf ;
 
 %mend overview ;
 
