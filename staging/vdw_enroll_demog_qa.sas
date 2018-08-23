@@ -472,13 +472,22 @@ quit ;
                        , ins_medicaid, ins_medicare, ins_medicare_a
                        , ins_medicare_b, ins_medicare_c, ins_medicare_d, ins_other
                        , ins_privatepay, ins_selffunded, ins_statesubsidized), 'Y') ;
+    num_plans_e = countc(cats(plan_hmo, plan_indemnity, plan_pos, plan_ppo), 'E') ;
+    num_ins_e   = countc(cats(ins_commercial, ins_highdeductible
+                       , ins_medicaid, ins_medicare, ins_medicare_a
+                       , ins_medicare_b, ins_medicare_c, ins_medicare_d, ins_other
+                       , ins_privatepay, ins_selffunded, ins_statesubsidized), 'E') ;
+
+    num_plans_a = num_plans + num_plans_e ;
+    num_ins_a = num_ins + num_ins_e ;
+
     * We only expect these vars to be known for insurance-basis recs ;
     if enrollment_basis in ('I', 'B') then do ;
-      if num_plans = 0 then do ;
+      if num_plans_a = 0 then do ;
         problem = "no plan flags set" ;
         output to_stay.bad_enroll ;
       end ;
-      if num_ins = 0 then do ;
+      if num_ins_a = 0 then do ;
         problem = "no insurance flags set" ;
         output to_stay.bad_enroll ;
       end ;
