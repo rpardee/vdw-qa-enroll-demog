@@ -12,4 +12,5 @@ deleteme.*
 ghc_qa
 qa_results
 with_lang
-reports/
+local_only/
+share/
