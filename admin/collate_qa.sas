@@ -25,13 +25,21 @@ options
 
 %include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/standard_macros.sas" ;
 
-libname raw "\\groups\data\CTRHS\Crn\voc\enrollment\programs\qa_results\raw" ;
-libname col "\\groups\data\CTRHS\Crn\voc\enrollment\programs\qa_results" ;
+%let prgs = \\groups\data\CTRHS\Crn\voc\enrollment\programs ;
+
+libname raw "&prgs\qa_results\raw" ;
+libname col "&prgs\qa_results" ;
+
+* Until I can figure out how to read this off the issue tracker (url below) I ;
+* need to keep this shadow copy. Bleah. ;
+%let mdb_file = &prgs/qa_results/issue_memory.accdb ;
+libname mem ODBC required="Driver={Microsoft Access Driver (*.mdb, *.accdb)}; DBQ=&mdb_file" ;
+
+%let issue_url = %str(https://www.hcsrn.org/share/page/site/VDW/data-lists?list=f3c5ef15-334b-47f4-b6d3-aee37bedc057) ;
 
 * We need this so that lowest_count is defined. ;
 %include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/StdVars.sas" ;
-%include "\\groups\data\CTRHS\Crn\voc\enrollment\programs\staging\qa_formats.sas" ;
-
+%include "&prgs\staging\qa_formats.sas" ;
 
 proc format cntlout = sites ;
   value $s (default = 22)
@@ -854,7 +862,7 @@ run ;
   options byline ;
 %mend report_correlations ;
 
-* %regen ;
+%regen ;
 * endsas ;
 
 ods listing close ;
@@ -914,10 +922,23 @@ ods tagsets.rtf file = "&out_folder.enroll_demog_qa.rtf"
     reset nonumber ;
     ods tagsets.rtf ;
 
-    create table nonnegligible_nonpasses as
+    create table nn as
     select *
     from col.norm_tier_one_results
     where result not in ('pass') AND (round(percent_bad, .01) > 0 OR percent_bad is null)
+    ;
+
+    /* Fetch cached status (if previously known) from the mem access db */
+    create table nonnegligible_nonpasses as
+    select n.*
+          , case
+              when n.result = 'fail' and r.issue_status is null then 'NOT YET LOGGED'
+              else r.issue_status
+            end as issue_status
+    from  nn as n LEFT JOIN
+          mem.remembered_nonpasses as r
+    on    n.site = r.site AND
+          n.description = r.description
     ;
 
     title2 "Tier One--checks that tripped any failures or warnings" ;
@@ -949,13 +970,18 @@ ods tagsets.rtf file = "&out_folder.enroll_demog_qa.rtf"
   * ods tagsets.rtf exclude all ;
 
   proc report data = nonnegligible_nonpasses ;
-    column sitename table description result num_bad percent_bad ;
+    column sitename table description result num_bad percent_bad issue_status ;
     define sitename / group 'Site' ;
     define table / 'Table' ;
     define description / 'Check' ;
     define result / 'Result' ;
     define num_bad / 'No. recs offending' ;
     define percent_bad / 'Pct. recs offending' ;
+    define issue_status / 'Issue Status (if logged)' ;
+
+    compute issue_status ;
+      call define(_col_, "URLP", "&issue_url") ;
+    endcomp ;
     where result ne 'pass' ;
   quit ;
   ods tagsets.rtf text = "See the VDW Issue Tracker for current status on all issues" ;

@@ -4,51 +4,82 @@
 * (206) 287-2078
 * pardee.r@ghc.org
 *
-* \\groups\data\CTRHS\Crn\voc\enrollment\programs\demog_milestone_three_qa.sas
+* /C/Documents and Settings/pardre1/My Documents/vdw/voc_enroll/qa_formats.sas
 *
-* <<purpose>>
+* Creates formats needed for the E/D QA program.
 *********************************************/
+*         UPDATE LOG          */
+*********************************************/
+* Paul Hitz
+* Essentia Institute of Rural Health
+* (218) 786-1008
+* pjh19401 (search string)
+* Added values for the Languages table.
+********************************************* ;
 
-** ====================== BEGIN EDIT SECTION ======================= ;
-** Please comment-out or remove this line if Roy forgets to.  Thanks/sorry! ;
-%include "\\home\pardre1\SAS\Scripts\remoteactivate.sas" ;
+* %let lowest_count = 9 ;
 
-options linesize = 150 nocenter msglevel = i NOOVP formchar='|-++++++++++=|-/|<>*' dsoptions="note2err" ; ** nosqlremerge ;
-
-libname _all_ clear ;
-
-** Please replace with a reference to your local StdVars file. ;
-%**include "\\groups\data\CTRHS\Crn\voc\enrollment\programs\StdVars.sas" ;
-
-%include "\\groups\data\CTRHS\Crn\S D R C\VDW\Macros\StdVars.sas" ;
-
-** A folder spec where HTML output can be written--please make sure you leave a trailing folder separator ;
-** character (e.g., a backslash) here--ODS is very picayune about that... ;
-%let out_folder = \\ctrhs-sas\SASUser\pardre1\vdw\voc_enroll ;
-** ======================= END EDIT SECTION ======================== ;
-
-data new_vars ;
+* pjh19401 added lang datalines ;
+data expected_vars ;
+  length name $ 32 ;
   input
-    @1    var_name $char25.
+    @1    dset                $
+    @9    name                $char20.
+    @33   type                1.0
+    @37   recommended_length  1.0
   ;
+  infile datalines missover ;
 datalines ;
-primary_language
-needs_interpreter
+demog   gender                  2   .
+demog   birth_date              1   4
+demog   hispanic                2   .
+demog   mrn                     2   .
+demog   needs_interpreter       2   .
+demog   race1                   2   .
+demog   race2                   2   .
+demog   race3                   2   .
+demog   race4                   2   .
+demog   race5                   2   .
+enroll  mrn                     2   .
+enroll  enr_end                 1   4
+enroll  enr_start               1   4
+enroll  enrollment_basis        2   .
+enroll  drugcov                 2   .
+enroll  ins_commercial          2   .
+enroll  ins_highdeductible      2   .
+enroll  ins_medicaid            2   .
+enroll  ins_medicare            2   .
+enroll  ins_medicare_a          2   .
+enroll  ins_medicare_b          2   .
+enroll  ins_medicare_c          2   .
+enroll  ins_medicare_d          2   .
+enroll  ins_other               2   .
+enroll  ins_privatepay          2   .
+enroll  ins_selffunded          2   .
+enroll  ins_statesubsidized     2   .
+enroll  incomplete_outpt_rx     2   .
+enroll  incomplete_outpt_enc    2   .
+enroll  incomplete_inpt_enc     2   .
+enroll  incomplete_emr          2   .
+enroll  incomplete_tumor        2   .
+enroll  incomplete_lab          2   .
+enroll  pcc                     2   .
+enroll  pcp                     2   .
+enroll  plan_hmo                2   .
+enroll  plan_indemnity          2   .
+enroll  plan_pos                2   .
+enroll  plan_ppo                2   .
+lang    mrn                     2   .
+lang    lang_iso                2   3
+lang    lang_usage              2   1
+lang    lang_primary            2   1
 ;
 run ;
 
-data changed_flag_vars ;
-  input
-    @1    var_name $char25.
-  ;
-datalines ;
-hispanic
-;
-run ;
 data iso_639_2 ;
   input
     @1 abbrev       $char3.
-    @8 description  $char200.
+    @8 description  $char80.
   ;
   infile datalines truncover ;
 datalines ;
@@ -379,7 +410,7 @@ nia    Nias
 nic    Niger-Kordofanian languages
 niu    Niuean
 nno    Norwegian Nynorsk, Nynorsk, Norwegian
-nob    Bokmål, Norwegian, Norwegian Bokmål
+nob    BokmÃ¥l, Norwegian, Norwegian BokmÃ¥l
 nog    Nogai
 non    Norse, Old
 nor    Norwegian
@@ -392,7 +423,7 @@ nym    Nyamwezi
 nyn    Nyankole
 nyo    Nyoro
 nzi    Nzima
-oci    Occitan (post 1500), Provençal
+oci    Occitan (post 1500), ProvenÃ§al
 oji    Ojibwa
 ori    Oriya
 orm    Oromo
@@ -417,7 +448,7 @@ pol    Polish
 pon    Pohnpeian
 por    Portuguese
 pra    Prakrit languages
-pro    Provençal, Old (to 1500)
+pro    ProvenÃ§al, Old (to 1500)
 pus    Pushto, Pashto
 que    Quechua
 raj    Rajasthani
@@ -529,7 +560,7 @@ uzb    Uzbek
 vai    Vai
 ven    Venda
 vie    Vietnamese
-vol    Volapük
+vol    VolapÃ¼k
 vot    Votic
 wak    Wakashan languages
 wal    Walamo
@@ -558,13 +589,36 @@ zxx    No linguistic content, Not applicable
 zza    Zaza, Dimili, Dimli, Kirdki, Kirmanjki, Zazaki
 ;
 run ;
-** ' Terminating the trailing apostrophe to fix syntax highlighting. ;
-proc format ;
+
+* pjh19401 added $use format ;
+proc format cntlout = fmt ;
+  value vtype
+    1 = "numeric"
+    2 = "char"
+  ;
   value $flg
-    'Y' = 'Yes'
-    'N' = 'No'
-    'U' = 'Unknown'
-    other = 'FAIL: Out of spec value!'
+    "Y"   = "yes"
+    "N"   = "no"
+    "U"   = "unknown"
+    "E"   = "external"
+    other = "bad"
+  ;
+  value $incflg
+    "K" = "known incomplete"
+    "N" = "not known incomplete"
+    "X" = "not implemented"
+    other = "bad"
+  ;
+  * Including this so the program keeps running even if the enrollment file does not have the new incomplete* flags. ;
+  value incflg
+    other = "not in file"
+  ;
+  value $eb
+    "I"   = "insurance"
+    "G"   = "geography"
+    "B"   = "both ins + geog"
+    "P"   = "patient only"
+    other = "bad"
   ;
   value $race
     "HP" = "Native Hawaiian or Other Pacific Islander"
@@ -572,134 +626,75 @@ proc format ;
     "AS" = "Asian"
     "BA" = "Black or African American"
     "WH" = "White"
-    "MU" = "More than one race, particular races unknown or not reported"
+    "MU" = "More than one race, particular races unknown or not reported                    "
+    "OT" = "Other"
     "UN" = "Unknown or Not Reported"
-    other = 'FAIL: Out of spec value!'
+    other = 'bad'
+  ;
+  value $gend
+    'M' = 'Male'
+    'F' = 'Female'
+    'U' = 'Unknown'
+    'O' = 'Other'
+    other = 'bad'
+  ;
+  value msk
+    1 - &lowest_count = "< &lowest_count"
+    other = [comma12.0]
+  ;
+  value $use
+    "S"     = 'Spoken'
+    "W"     = 'Written'
+    "B"     = 'Both'
+    "U"     = 'Unknown'
+    other   = 'bad'
+  ;
+  value $flgnm
+    "flg_commercial"        = "Commercial"
+    "flg_highdeductible"    = "High-Deductible"
+    "flg_medicaid"          = "Medicaid"
+    "flg_medicare"          = "Medicare"
+    "flg_medicare_a"        = "Medicare Part A"
+    "flg_medicare_b"        = "Medicare Part B"
+    "flg_medicare_c"        = "Medicare Part C"
+    "flg_medicare_d"        = "Medicare Part D"
+    "flg_other"             = "Other"
+    "flg_privatepay"        = "Privatepay"
+    "flg_selffunded"        = "Self Funded"
+    "flg_statesubsidized"   = "State Subsidized"
+    "flg_hmo"               = "HMO"
+    "flg_pos"               = "Point of Service"
+    "flg_ppo"               = "Preferred Provider Organization"
+    "flg_indemnity"         = "Traditional Indemnity"
   ;
 quit ;
 
-%macro find_new_vars ;
-  %global num_new_vars v1 v2 v3 v4 v5 new_vars ;
-  title2 "Checking for existence of new vars." ;
-  proc sql ;
-    ** describe table dictionary.columns ;
-    create table existing_vars as
-    select lowcase(name) as var_name, type, label
-    from dictionary.columns
-    where lowcase(compress(libname || '.' || memname)) = "%lowcase(&_vdw_demographic_m3)" AND
-          lowcase(name) in (select var_name from new_vars)
-    ;
+proc sql ;
 
-    select "PASS: Variable exists" as msg, var_name, type, label
-    from existing_vars
-    where var_name in (select var_name from new_vars)
-    ;
+  create table langfmt like fmt ;
 
-    reset noprint ;
+  describe table langfmt ;
 
-    select var_name
-    into :v1 - :v2
-    from existing_vars
-    where var_name in (select var_name from new_vars)
-    ;
+  insert into langfmt (fmtname, start, end, label)
+  select '$LANG', abbrev, abbrev, description
+  from iso_639_2
+  ;
 
-    select var_name
-    into :new_vars separated by ', '
-    from existing_vars
-    where var_name in (select var_name from new_vars)
-    ;
+  insert into langfmt (start, end, label, fmtname)
+  values('unk', 'unk', "Unknown", '$LANG')
+  ;
 
-    %let num_new_vars = &sqlobs ;
+  insert into langfmt (start, end, label, fmtname, hlo)
+  values('**OTHER**', '**OTHER**', "bad", '$LANG', 'O')
+  ;
 
-    reset print ;
+quit ;
 
-    select "FAIL: Variable does not exist!" as msg, var_name
-    from new_vars
-    where var_name not in (select var_name from existing_vars)
-    ;
-
-  quit ;
-  %if &sqlobs > 0 %then %do i = 1 %to 10 ;
-    %put FAIL: ONE OR MORE MILESTONE 1 VARIABLES MISSING FROM &_vdw_demographic_m3!!!  See output file for details. ;
-  %end ;
-%mend find_new_vars ;
-
-%macro freqs(dset = &_vdw_demographic_m3, n = 20) ;
-  title2 "Frequencies on the new and changed vars." ;
-  proc format ;
-    value msk
-      0 - 4 = '< 5'
-      other = [comma15.2]
-    ;
-  quit ;
-
-  ** Adding a shill var just so I can make the freqs xtabs, so SAS will allow me to format the counts w/a masking format. ;
-  data gnu ;
-    set &dset ;
-    site = "&_SiteAbbr" ;
-  run ;
-
-  proc freq data = gnu ;
-    tables (race: hispanic) * site / missing format = msk. ;
-    format race: $race. hispanic $flg. ;
-  run ;
-
-  %if %index(%quote(&new_vars), primary_language) > 0 %then %do ;
-    proc freq data = gnu ;
-      tables primary_language * site / out = lang_counts format = msk. ;
-    run ;
-
-    proc sql ;
-      create table vdw_lang_spec as select * from iso_639_2 ;
-      insert into iso_639_2(abbrev, description) values ('unk', 'Unknown (VDW-specific value)') ;
-      alter table vdw_lang_spec add primary key (abbrev) ;
-      select 'FAIL: Out-of-spec value!!!' as message, primary_language as value, count format = msk.
-      from lang_counts as c LEFT JOIN
-            iso_639_2 as s
-      on    c.primary_language = s.abbrev
-      where s.abbrev IS NULL
-      ;
-    quit ;
-
-  %end ;
-  %if %index(%quote(&new_vars), needs_interpreter) > 0 %then %do ;
-    proc freq data = gnu ;
-      tables needs_interpreter * site / missing format = msk. ;
-      format needs_interpreter $flg. ;
-    run ;
-  %end ;
-%mend freqs ;
-
-
-%macro demog_m3_qa ;
-  %if %symexist(_vdw_demographic_m3) %then %do ;
-    %put PASS: Macro variable _vdw_demographic_m3 found! ;
-    %find_new_vars ;
-    %freqs ;
-  %end ;
-  %else %do ;
-    proc sql ;
-      select "FAIL: DEMOG MILESTONE THREE MACRO VAR (_vdw_demographic_m3) NOT DEFINED!!!" as fail_message
-      from new_vars
-      ;
-    quit ;
-    %do i = 1 %to 10 ;
-      %put FAIL: DEMOG MILESTONE THREE MACRO VAR (_vdw_demographic_m3) NOT DEFINED!!! ;
-    %end ;
-  %end ;
-%mend demog_m3_qa ;
-
-options mprint ;
-
-ods html path = "&out_folder" (URL=NONE)
-         body = "demog_milestone_three_qa_&_SiteAbbr..html"
-         (title = "Demog M3 &_SiteAbbr output")
-          ;
-  title1 "Demographics Milestone Three QA output for &_SiteName" ;
-
-  %demog_m3_qa ;
-
+proc format cntlin = langfmt ;
 run ;
 
-ods html close ;
-
+proc sql ;
+  drop table fmt ;
+  drop table iso_639_2 ;
+  drop table langfmt ;
+quit ;

@@ -1,0 +1,12 @@
+how to arrange a git repo for version-controlling and distributing HCSRN qa code.
+
+considerations
+  at runtime we want /to_go and /to_stay subfolders, which get filled w/output/dsets, but we don't want those to be part of the repo (right?).  Can I engineer .gitignore so that the folders get created but everything in them is ignored?
+    prob more trouble than it'd be worth to try and create those subdirs in SAS code...
+
+  I want to keep my collation/report generation code in this repo as well, but I don't want it to be in the way or confusing to end-users who are cloning to get the latest code
+
+  is there some easy way to factor out the environment setting stuff?  Would that be too confusing?
+    gitignore env.sas
+    include sample_env.sas in repo, which contains the edit section
+    instruct end-users to rename sample_env.sas to env.sas

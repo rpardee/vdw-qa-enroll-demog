@@ -34,7 +34,7 @@ options
 
 * Years over which you want rate data ;
 %let start_year = 2010 ;
-%let end_year   = 2017 ; * <-- best to use last complete year ;
+%let end_year   = 2018 ; * <-- best to use last complete year ;
 
 /*
 
@@ -48,8 +48,8 @@ options
 
   If you have the wherewithal to create this utility dataset on the db server
   where the rest of your VDW tables live, then SAS will (probably) pass the
-  join work off tothe db to complete, which is orders of magnitude faster than
-  having SAS pull your tables into temp datasets & do the join on the SAS
+  join work off to the db to complete, which is orders of magnitude faster
+  than having SAS pull your tables into temp datasets & do the join on the SAS
   side. At Group Health (we use Teradata) making this change turned a job that
   ran in about 14 hours into one that runs in 15 *minutes*.
 
@@ -62,10 +62,10 @@ options
 */
 
 libname mylib teradata
-  user              = "&clean_username@LDAP"
-  password          = "&password"
+  user              = "&nuid@LDAP"
+  password          = "&cspassword"
   server            = "&td_prod"
-  schema            = "%sysget(username)"
+  schema            = "&nuid"
   multi_datasrc_opt = in_clause
   connection        = global
 ;
@@ -88,6 +88,10 @@ proc format ;
     "M" = "Molina"
     "G" = "GH Medicaid"
   other = "Unknown"
+  ;
+  value iw
+    0 = 'East'
+    1 = 'West'
   ;
 quit ;
 
@@ -126,14 +130,17 @@ quit ;
   proc sql ;
     create table summarized as
     select i.first_day length = 4
-          , case e.ins_medicaid when 'Y' then 'G' when 'E' then 'M' else e.&incvar end as &incvar
+          , &incvar
           , &extra_var   as extra
           , count(distinct e.mrn) as n
           , sum(case when r.mrn is null then 0 else 1 end) as num_events
     from  &tmplib..inflate_months as i LEFT JOIN
           &enrlset as e
     on    e.&startvar le i.last_day AND
-          e.&endvar   ge i.first_day LEFT JOIN
+          e.&endvar   ge i.first_day INNER JOIN
+          &_vdw_demographic as d
+    on    e.mrn = d.mrn AND
+          %calcage(BDtVar = birth_date, RefDate = i.first_day) ge 65 LEFT JOIN
           &inset as r
     on    e.mrn = r.mrn AND
           r.&datevar between i.first_day and i.last_day
@@ -150,7 +157,7 @@ quit ;
   %else %do ;
     create table true_denoms as
     select i.first_day length = 4
-          , case e.ins_medicaid when 'Y' then 'G' when 'E' then 'M' else e.&incvar end as &incvar
+          , &incvar
           , count(distinct e.mrn) as n
     from  &tmplib..inflate_months as i LEFT JOIN
           &enrlset as e
@@ -188,16 +195,16 @@ quit ;
   */
 
   data &outset ;
-    length &incvar $ 30 ;
+    length region $ 30 ;
     set &outset ;
     if n then rate = num_events / n ;
-    &incvar = put(&incvar, $inc.) ;
+    region = put(&incvar, iw.) ;
     * Censor any lower-than-permitted counts. ;
     if n          and n          le &lowest_count then n          = .a ;
     if num_events and num_events le &lowest_count then num_events = .a ;
     format
       n num_events comma10.0
-      &incvar $30.
+      region $30.
     ;
   run ;
 
@@ -208,14 +215,19 @@ quit ;
 %mend get_rates ;
 
 options mprint ;
-/*
+
 %get_rates(startyr     = &start_year
           , endyr      = &end_year
           , inset      = &_vdw_lab
           , datevar    = lab_dt
-          , incvar     = incomplete_lab
-          , outset     = out.&_siteabbr._lab_rates
+          , incvar     = iswest
+          , extra_var  = case when gpdconfidence ge .7 then 'Group Practice' else 'Contracted' end as division
+          , outset     = out.&_siteabbr._lab_rates_ew_old
           ) ;
+
+endsas ;
+
+/*
 
 %get_rates(startyr  = &start_year
           , endyr   = &end_year
