@@ -12,5 +12,4 @@ deleteme.*
 ghc_qa
 qa_results
 with_lang
-completeness/do_not_send/
 reports/
