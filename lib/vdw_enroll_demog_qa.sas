@@ -33,25 +33,8 @@
 * Added checks for the Languages table.
 *********************************************/
 
-* If roy forgets to comment this out, please do so.  Thanks/sorry! ;
-* %include "h:/SAS/Scripts/remoteactivate.sas" ;
-
-%include vdw_macs ;
-
-* Test program--replaces real enroll/demog with deformed versions. ;
-* %include "//groups/data/CTRHS/Crn/voc/enrollment/test_tier1_qa.sas" ;
-
-%include "&root./qa_formats.sas" ;
-%include "&root./vdw_lang_qa.sas" ;
-%include "&root./simple_data_rates_generic.sas" ;
-%include "&root./graph_data_rates.sas" ;
-
-* Acceding to the CESR convention of spitting log out to sendable folder. ;
-proc printto log = "&root/to_send/&_siteabbr._vdw_enroll_demog_qa.log" new ;
-run ;
-
-libname to_stay "&root./DO_NOT_SEND" ;
-libname to_go   "&root./to_send" ;
+libname to_stay "&root./local_only" ;
+libname to_go   "&root./share" ;
 
 proc sql ;
   create table results
