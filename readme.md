@@ -7,7 +7,7 @@ This package generates a report and datasets from which we will be able to:
 * Generates descriptives (frequencies & percents) which we can compare across sites, and possibly detect differences across sites that may indicate not-yet-known problems with one or more site's data.
 
 ## Programmers
-Roy Pardee & Paul Hitz
+Roy Pardee (@kaiser-roy) & Paul Hitz
 
 ## Instructions
 
@@ -19,11 +19,11 @@ Roy Pardee & Paul Hitz
 
 Note git users only need to do step 1. above once.  For any subsequent runs, all you have to do is make sure you have the most recent changes to the code by running ```git pull origin master``` at a command line, or use your preferred git client (e.g., sourcetree, gitkraken) to perform that same operation.
 
-_A Note On The **incomplete_emr** descriptives_
+> _A Note On The **incomplete_emr** descriptives_
+>
+> Optionally, if you have non-EMR data in your Social History, or Vital Signs files, you may want to edit the two calls to %get_rates that stratify on incomplete_emr in order to limit the records considered to those that actually come from your EMR. These calls are on lines 1356 and 1366 of the main program (/lib/vdw_enroll_demog_qa.sas). You can see the syntax to use from the commented-out specifications for the parameter &extrawh (for 'extra WHERE condition').
 
-Optionally, if you have non-EMR data in your Social History, or Vital Signs files, you may want to edit the two calls to %get_rates that stratify on incomplete_emr in order to limit the records considered to those that actually come from your EMR. These calls are on lines 1356 and 1366 of the main program (/lib/vdw_enroll_demog_qa.sas). You can see the syntax to use from the commented-out specifications for the parameter &extrawh (for 'extra WHERE condition').
-
-Please don't hesitate to get in touch with Roy if you have any questions about this.
+Please don't hesitate to get in touch with @kaiser-roy if you have any questions about this.
 
 # Data Required
 This program requires the following VDW files:
@@ -50,7 +50,7 @@ This program produces several datasets in the &root/local_only directory.  These
 
 **Outputs that ARE requested**
 
-Please zip & send to Roy Pardee the following:
+Please zip & send to @kaiser-roy via the [KPWHRI Secure File Transfer app](http://projects.kpwashingtonresearch.org/sft/) the following:
 
 * the vdw_enroll_demog_qa.log file, which you will find in the &root directory.
 * The 21 files you find in the &root/to_send directory:
