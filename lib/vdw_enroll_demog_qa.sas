@@ -628,7 +628,6 @@ quit ;
   run ;
 
   %removedset(dset = periods) ;
-
 %mend enroll_tier_one ;
 
 %macro demog_tier_one(inset = &_vdw_demographic) ;
@@ -781,7 +780,6 @@ quit ;
     select description, '%demog_tier_one', 'to_stay.bad_demog', num_bad, percent_bad, result
     from demog_rbr_checks
     ;
-
 
   quit ;
 %mend demog_tier_one ;
@@ -1047,9 +1045,7 @@ quit ;
         pcc_probably_valid    = "Has a valid Primary Care Clinic assignment?"
       ;
   quit ;
-
 %mend make_denoms ;
-
 
 %macro enroll_tier_one_point_five(inset = to_stay.denoms, outset = to_go.&_siteabbr._enroll_freqs) ;
 
@@ -1322,7 +1318,6 @@ quit ;
             ) ;
 %mend do_all_rates ;
 
-
 %check_vars ;
 %demog_tier_one ;
 %lang_tier_one; *pjh19401;
@@ -1346,14 +1341,13 @@ run ;
 options orientation = landscape ;
 ods graphics / height = 6in width = 10in ;
 
-ods html path   = "%sysfunc(pathname(to_go))" (URL=NONE)
-         gpath  = "%sysfunc(pathname(to_stay))"
+ods html5 path   = "%sysfunc(pathname(to_go))" (URL=NONE)
          body   = "&_siteabbr._vdw_enroll_demog_qa.html"
          (title = "&_SiteName.: QA for Enroll/Demographics - Tier 1 & 1.5")
          style  = magnify
          nogfootnote
-          ;
-
+         device = svg
+         ;
 
 ods rtf file = "%sysfunc(pathname(to_stay))/&_siteabbr._vdw_enroll_demog_qa.rtf"
         device = sasemf

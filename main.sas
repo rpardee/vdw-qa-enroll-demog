@@ -14,7 +14,7 @@
 *********************************************/
 
 * If roy forgets to comment this out, please do so.  Thanks/sorry! ;
-* %include "h:/SAS/Scripts/remoteactivate.sas" ;
+%include "h:/SAS/Scripts/remoteactivate.sas" ;
 
 options
   linesize  = 150
@@ -40,15 +40,16 @@ libname _all_ clear ;
 %include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/StdVars.sas" ;
 
 * Please edit this so it points to the location where you unzipped the files/folders. ;
-%let root = //groups/data/CTRHS/Crn/voc/enrollment/programs/ghc_qa ;
+%let root = //groups/data/ctrhs/chs/pardre1/repos/voc_enroll ;
 
 * Some sites are having trouble w/the calls to SGPlot--if you want to try to get the graphs please set this var to false. ;
 * If you do and get errors, please keep it set to true. ;
-%let skip_graphs = false ;
 %let skip_graphs = true ;
+%let skip_graphs = false ;
 
 * Please set start_year to your earliest date of enrollment data. ;
 %let start_year = 1988 ;
+* Please set end_year to the last complete year of data. ;
 %let end_year = 2018 ;
 %let end_year = %sysfunc(intnx(year, "&sysdate9"d, -1, end), year4.) ;
 
