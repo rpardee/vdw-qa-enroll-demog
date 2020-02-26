@@ -9,7 +9,7 @@
 * Mini-QA for the gender/sex spec change to demog. See:
 * https://www.hcsrn.org/share/page/site/VDW/document-details?nodeRef=workspace://SpacesStore/ef38035c-4e7c-4d02-b7cc-cb9f082eade0
 *********************************************/
-
+* Please comment this out if I forget to. Thank you/sorry! ;
 %include "h:/SAS/Scripts/remoteactivate.sas" ;
 
 options
@@ -17,7 +17,7 @@ options
   pagesize  = 80
   msglevel  = i
   formchar  = '|-++++++++++=|-/|<>*'
-  dsoptions = note2err
+  /* dsoptions = note2err */
   nocenter
   noovp
   nosqlremerge
@@ -42,6 +42,9 @@ options
 ***************** end edit section ******************************* ;
 ***************** end edit section ******************************* ;
 ***************** end edit section ******************************* ;
+%let obs_lim = (obs = 5000) ;
+%let obs_lim = ;
+
 %include vdw_macs ;
 
 libname to_stay "&root./local_only" ;
@@ -57,31 +60,31 @@ proc datasets nolist library = to_stay  KILL ; run ;
 * These define the valid values. ;
 proc format ;
   value $sexadm
-    'F' = 'Female'
-    'M' = 'Male'
-    'X' = 'Neither Male Nor Female'
-    'O' = 'Other'
-    'U' = 'Unknown /uncertain / missing'
+    'F'   = 'Female'
+    'M'   = 'Male'
+    'X'   = 'Neither Male Nor Female'
+    'O'   = 'Other'
+    'U'   = 'Unknown /uncertain / missing'
     other = 'bad'
   ;
   value $sexaab
-    'F' = 'Female'
-    'M' = 'Male'
-    'I' = 'Intersex'
-    'O' = 'Other'
-    'U' = 'Uncertain, Unknown or Not recorded on birth certificate'
-    'C' = 'Choose not to disclose'
+    'F'   = 'Female'
+    'M'   = 'Male'
+    'I'   = 'Intersex'
+    'O'   = 'Other'
+    'U'   = 'Uncertain, Unknown or Not recorded on birth certificate'
+    'C'   = 'Choose not to disclose'
     other = 'bad'
   ;
   value $gi
-    'FF' = 'Female'
-    'MM' = 'Male'
-    'FM' = 'Female to Male transgender'
-    'MF' = 'Male to Female transgender'
-    'GQ' = 'Genderqueer or non-conforming or non-binary or genderfluid'
-    'OT' = 'Other'
-    'ND' = 'Choose not to disclose'
-    'UK' = 'Unknown'
+    'FF'  = 'Female'
+    'MM'  = 'Male'
+    'FM'  = 'Female to Male transgender'
+    'MF'  = 'Male to Female transgender'
+    'GQ'  = 'Genderqueer or non-conforming or non-binary or genderfluid'
+    'OT'  = 'Other'
+    'ND'  = 'Choose not to disclose'
+    'UK'  = 'Unknown'
     other = 'bad'
   ;
 quit ;
@@ -96,9 +99,9 @@ data expected_vars ;
   ;
   infile datalines missover ;
 datalines ;
-demog   kpwa_sex_admin          sexadm
-demog   kpwa_sex_at_birth       sexaab
-demog   kpwa_gender_identity    gi
+demog   sex_admin               sexadm
+demog   sex_at_birth            sexaab
+demog   gender_identity         gi
 ;
 run ;
 
@@ -124,7 +127,7 @@ run ;
     ;
 
     insert into to_go.results (check, result)
-    select catx(' ', name, 'exists.') as chk length = 50, 'pass'
+    select catx(' ', name, 'exists.') as chk, 'pass'
     from expected_vars_found
     ;
 
@@ -137,7 +140,7 @@ run ;
     ;
 
     insert into to_go.results (check, result)
-    select catx(' ', name, ' does not exist.') as chk length = 50, 'fail'
+    select catx(' ', name, 'does not exist.') as chk, 'fail'
     from expected_vars_notfound
     ;
 
@@ -148,32 +151,33 @@ run ;
     %let num_vars = &SQLOBS ;
   quit ;
 
-  data to_stay.bad_demog ;
-    set &_vdw_demographic (obs = 5000) ;
-    %do i = 1 %to &num_vars ;
-      if put(&&name&i, &&fmt&i) = 'bad' then do ;
-        problem = "bad value in &&name&i" ;
-        output to_stay.bad_demog ;
-      end ;
-    %end ;
-  run ;
-  proc sql ;
-    create table bad_demog_summary as
-    select problem, count(*) as num_bad
-    from to_stay.bad_demog
-    group by problem
-    ;
-
-    insert into to_go.results (check, result)
-    select catx(' ', problem, 'for', put(num_bad, best.), 'records.') as chk length = 50, 'fail'
-    from bad_demog_summary
-    ;
-  quit ;
-
   %if &num_vars > 0 %then %do ;
-    proc freq data = &_vdw_demographic noprint ;
+    data to_stay.bad_demog ;
+      set &_vdw_demographic &obs_lim ;
       %do i = 1 %to &num_vars ;
-        tables &&name&i * gender / missing format = comma9.0 out = to_go.&_SiteAbbr._&&name&i._counts outpct ;
+        if put(&&name&i, &&fmt&i) = 'bad' then do ;
+          problem = "bad value in &&name&i" ;
+          output to_stay.bad_demog ;
+        end ;
+      %end ;
+    run ;
+
+    proc sql ;
+      create table bad_demog_summary as
+      select problem, count(*) as num_bad
+      from to_stay.bad_demog
+      group by problem
+      ;
+
+      insert into to_go.results (check, result)
+      select catx(' ', problem, 'for', put(num_bad, comma12.0), 'records.') as chk, 'fail'
+      from bad_demog_summary
+      ;
+    quit ;
+
+    proc freq data = &_vdw_demographic &obs_lim noprint ;
+      %do i = 1 %to &num_vars ;
+        tables &&name&i * gender / missing format = comma9.0 out = to_go.&_SiteAbbr._&&name&i.._counts outpct ;
       %end ;
     run ;
   %end ;
