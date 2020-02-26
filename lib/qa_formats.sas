@@ -590,7 +590,7 @@ zza    Zaza, Dimili, Dimli, Kirdki, Kirmanjki, Zazaki
 ;
 run ;
 
-* pjh19401 added $use format ;
+* pjh19401 added $use format ' ;
 proc format cntlout = fmt ;
   value vtype
     1 = "numeric"
