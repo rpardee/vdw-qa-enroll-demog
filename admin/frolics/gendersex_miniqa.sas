@@ -84,8 +84,12 @@ proc format ;
     'GQ'  = 'Genderqueer or non-conforming or non-binary or genderfluid'
     'OT'  = 'Other'
     'ND'  = 'Choose not to disclose'
-    'UK'  = 'Unknown'
+    'UN'  = 'Unknown'
     other = 'bad'
+  ;
+  value msk_cnt
+    0 - &lowest_count = '<too low to show>'
+    other = [comma12.0]
   ;
 quit ;
 
@@ -170,7 +174,7 @@ run ;
       ;
 
       insert into to_go.results (check, result)
-      select catx(' ', problem, 'for', put(num_bad, comma12.0), 'records.') as chk, 'fail'
+      select catx(' ', problem, 'for', put(num_bad, msk_cnt.), 'records.') as chk, 'fail'
       from bad_demog_summary
       ;
     quit ;
