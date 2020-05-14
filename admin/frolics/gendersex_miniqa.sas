@@ -111,14 +111,14 @@ run ;
 
 %macro sex_change ;
   %* Giggle. Does all the checks & spits out results. ;
-  %removedset(dset = to_go.&_siteabbr._results) ;
+  %removedset(dset = to_go.&_siteabbr._gender_results) ;
 
   proc contents noprint data = &_vdw_demographic  out = dvars(keep = name type length label) ;
   run ;
 
   proc sql noprint ;
 
-    create table to_go.&_siteabbr._results
+    create table to_go.&_siteabbr._gender_results
     (   check char(200)
       , result char(10)
     ) ;
@@ -130,7 +130,7 @@ run ;
     on    e.name = lower(d.name)
     ;
 
-    insert into to_go.&_siteabbr._results (check, result)
+    insert into to_go.&_siteabbr._gender_results (check, result)
     select catx(' ', name, 'exists.') as chk, 'pass'
     from expected_vars_found
     ;
@@ -143,7 +143,7 @@ run ;
     where d.name is null
     ;
 
-    insert into to_go.&_siteabbr._results (check, result)
+    insert into to_go.&_siteabbr._gender_results (check, result)
     select catx(' ', name, 'does not exist.') as chk, 'fail'
     from expected_vars_notfound
     ;
@@ -173,7 +173,7 @@ run ;
       group by problem
       ;
 
-      insert into to_go.&_siteabbr._results (check, result)
+      insert into to_go.&_siteabbr._gender_results (check, result)
       select catx(' ', problem, 'for', put(num_bad, msk_cnt.), 'records.') as chk, 'fail'
       from bad_demog_summary
       ;
@@ -186,7 +186,7 @@ run ;
     run ;
   %end ;
 
-  proc print data = to_go.&_siteabbr._results ;
+  proc print data = to_go.&_siteabbr._gender_results ;
     id check ;
   run ;
 
