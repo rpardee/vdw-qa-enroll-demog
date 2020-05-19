@@ -101,38 +101,31 @@ quit ;
     where outcome in ("missing", "bad type")
     ;
 
-    select count(*)
-    into :num_demlang
-    from to_go.&_siteabbr._noteworthy_vars
-    where lowcase(dset) = 'demog' and lowcase(name) = 'primary_language'
-    ;
+    %macro should_be_gone(dset = ,vname = ) ;
 
-    %if &num_demlang > 0 %then %do ;
-      insert into results(description, qa_macro, detail_dset, result)
-      values ("Primary_language has been removed from demog.", '%check_vars', "to_go.noteworthy_vars","fail")
+      select count(*)
+      into :num_demlang
+      from to_go.&_siteabbr._noteworthy_vars
+      where lowcase(dset) = "&dset" and lowcase(name) = "&vname"
       ;
-    %end ;
-    %else %do ;
-      insert into results(description, qa_macro, detail_dset, result)
-      values ("Primary_language has been removed from demog.", '%check_vars', "to_go.noteworthy_vars","pass")
-      ;
-    %end ;
-    select count(*)
-    into :num_outute
-    from to_go.&_siteabbr._noteworthy_vars
-    where lowcase(dset) = 'enroll' and lowcase(name) = 'outside_utilization'
-    ;
 
-    %if &num_outute > 0 %then %do ;
-      insert into results(description, qa_macro, detail_dset, result)
-      values ("Outside_utilization has been removed from enrollment.", '%check_vars', "to_go.noteworthy_vars","fail")
-      ;
-    %end ;
-    %else %do ;
-      insert into results(description, qa_macro, detail_dset, result)
-      values ("Outside_utilization has been removed from enrollment.", '%check_vars', "to_go.noteworthy_vars","pass")
-      ;
-    %end ;
+      %if &num_demlang > 0 %then %do ;
+        insert into results(description, qa_macro, detail_dset, result)
+        values ("&vname has NOT been removed from demog.", '%check_vars', "to_go.noteworthy_vars","fail")
+        ;
+      %end ;
+      %else %do ;
+        insert into results(description, qa_macro, detail_dset, result)
+        values ("&vname has been removed from demog.", '%check_vars', "to_go.noteworthy_vars","pass")
+        ;
+      %end ;
+
+    %mend should_be_gone ;
+
+    %should_be_gone(dset = demog, vname = primary_language) ;
+    %should_be_gone(dset = demog, vname = outside_utilization) ;
+    %should_be_gone(dset = demog, vname = gender) ;
+
     %if &num_bad > 0 %then %do ;
       insert into results(description, qa_macro, detail_dset, result)
       values ("Are all vars in the spec in the dataset & of proper type?", '%check_vars', "to_go.noteworthy_vars","fail")
@@ -701,8 +694,18 @@ quit ;
       end ;
     end ;
 
-    if put(gender, $gend.) = 'bad' then do ;
-      problem = "bad value in gender" ;
+    if put(sex_admin, $sexadm.) = 'bad' then do ;
+      problem = "bad value in sex_admin" ;
+      output to_stay.bad_demog ;
+    end ;
+
+    if put(sex_at_birth, $sexaab.) = 'bad' then do ;
+      problem = "bad value in sex_at_birth" ;
+      output to_stay.bad_demog ;
+    end ;
+
+    if put(gender_identity, $gi.) = 'bad' then do ;
+      problem = "bad value in gender_identity" ;
       output to_stay.bad_demog ;
     end ;
 
@@ -1356,9 +1359,11 @@ ods rtf file = "%sysfunc(pathname(to_stay))/&_siteabbr._vdw_enroll_demog_qa.rtf"
 
   title1 "&_SiteName.: QA for Enroll/Demographics" ;
   title2 "Tier One Checks" ;
-  proc sql number ;
-    select * from to_go.&_siteabbr._tier_one_results ;
-  quit ;
+  proc print label data = to_go.&_siteabbr._tier_one_results ;
+    id description ;
+    var qa_macro detail_dset num_bad percent_bad ;
+    var result / style = {background=$result.} ;
+  run ;
 
   title2 "Tier 1.5 Checks" ;
 

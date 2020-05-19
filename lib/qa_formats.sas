@@ -30,7 +30,9 @@ data expected_vars ;
   ;
   infile datalines missover ;
 datalines ;
-demog   gender                  2   .
+demog   sex_admin               2   .
+demog   sex_at_birth            2   .
+demog   gender_identity         2   .
 demog   birth_date              1   4
 demog   hispanic                2   .
 demog   mrn                     2   .
@@ -631,13 +633,36 @@ proc format cntlout = fmt ;
     "UN" = "Unknown or Not Reported"
     other = 'bad'
   ;
-  value $gend
-    'M' = 'Male'
-    'F' = 'Female'
-    'U' = 'Unknown'
-    'O' = 'Other'
+
+  value $sexadm
+    'F'   = 'Female'
+    'M'   = 'Male'
+    'X'   = 'Neither Male Nor Female'
+    'O'   = 'Other'
+    'U'   = 'Unknown /uncertain / missing'
     other = 'bad'
   ;
+  value $sexaab
+    'F'   = 'Female'
+    'M'   = 'Male'
+    'I'   = 'Intersex'
+    'O'   = 'Other'
+    'U'   = 'Uncertain, Unknown or Not recorded on birth certificate'
+    'C'   = 'Choose not to disclose'
+    other = 'bad'
+  ;
+  value $gi
+    'FF'  = 'Female'
+    'MM'  = 'Male'
+    'FM'  = 'Female to Male transgender'
+    'MF'  = 'Male to Female transgender'
+    'GQ'  = 'Genderqueer or non-conforming or non-binary or genderfluid'
+    'OT'  = 'Other'
+    'ND'  = 'Choose not to disclose'
+    'UN'  = 'Unknown'
+    other = 'bad'
+  ;
+
   value msk
     1 - &lowest_count = "< &lowest_count"
     other = [comma12.0]
@@ -666,6 +691,11 @@ proc format cntlout = fmt ;
     "flg_pos"               = "Point of Service"
     "flg_ppo"               = "Preferred Provider Organization"
     "flg_indemnity"         = "Traditional Indemnity"
+  ;
+  value $result
+    'fail'    = "red"
+    'warning' = "orange"
+    'pass'    = "green"
   ;
 quit ;
 

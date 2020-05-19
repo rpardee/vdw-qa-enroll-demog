@@ -9,9 +9,7 @@
 *.zip
 ~*.*
 deleteme.*
-ghc_qa
-qa_results
-with_lang
+submitted_data/
 local_only/
 share/
 admin/reports/
