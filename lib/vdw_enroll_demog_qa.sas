@@ -111,7 +111,7 @@ quit ;
 
       %if &num_demlang > 0 %then %do ;
         insert into results(description, qa_macro, detail_dset, result)
-        values ("&vname has NOT been removed from demog.", '%check_vars', "to_go.noteworthy_vars","fail")
+        values ("&vname has been removed from demog.", '%check_vars', "to_go.noteworthy_vars","fail")
         ;
       %end ;
       %else %do ;
