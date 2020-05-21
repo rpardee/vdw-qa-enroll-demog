@@ -1259,7 +1259,7 @@ quit ;
             , inset     = &_vdw_utilization
             , datevar   = adate
             , incvar    = incomplete_inpt_enc
-            , outset    = to_go.&_siteabbr._ute_in_rates_by_enctype
+            , outset    = to_go.ute_in_rates_by_enctype
             , extra_var = coalesce(enctype, 'XX')
             ) ;
 
@@ -1268,9 +1268,9 @@ quit ;
             , inset     = &_vdw_utilization
             , datevar   = adate
             , incvar    = incomplete_outpt_enc
-            , outset    = to_go.&_siteabbr._ute_out_rates_by_enctype
+            , outset    = to_go.ute_out_rates_by_enctype
             , extra_var = coalesce(enctype, 'XX')
-            , outunenr = to_go.&_siteabbr._enc_unenrolled
+            , outunenr = to_go.enc_unenrolled
             ) ;
 
   %get_rates(startyr  = &start_year
@@ -1278,8 +1278,8 @@ quit ;
             , inset   = &_vdw_tumor
             , datevar = dxdate
             , incvar  = incomplete_tumor
-            , outset  = to_go.&_siteabbr._tumor_rates
-            , outunenr = to_go.&_siteabbr._tum_unenrolled
+            , outset  = to_go.tumor_rates
+            , outunenr = to_go.tum_unenrolled
             ) ;
 
   %get_rates(startyr     = &start_year
@@ -1287,8 +1287,8 @@ quit ;
             , inset      = &_vdw_lab
             , datevar    = lab_dt
             , incvar     = incomplete_lab
-            , outset     = to_go.&_siteabbr._lab_rates
-            , outunenr = to_go.&_siteabbr._lab_unenrolled
+            , outset     = to_go.lab_rates
+            , outunenr = to_go.lab_unenrolled
             ) ;
 
   %get_rates(startyr  = &start_year
@@ -1297,8 +1297,8 @@ quit ;
             /* , extrawh = %str(AND dsource = 'P') */
             , datevar = measure_date
             , incvar  = incomplete_emr
-            , outset  = to_go.&_siteabbr._emr_v_rates
-            , outunenr = to_go.&_siteabbr._vsn_unenrolled
+            , outset  = to_go.emr_v_rates
+            , outunenr = to_go.vsn_unenrolled
             ) ;
 
   %get_rates(startyr  = &start_year
@@ -1307,8 +1307,8 @@ quit ;
             /* , extrawh = %str(AND kpwa_source = 'C') */
             , datevar = contact_date
             , incvar  = incomplete_emr
-            , outset  = to_go.&_siteabbr._emr_s_rates
-            , outunenr = to_go.&_siteabbr._shx_unenrolled
+            , outset  = to_go.emr_s_rates
+            , outunenr = to_go.shx_unenrolled
             ) ;
 
   %get_rates(startyr  = &start_year
@@ -1316,9 +1316,10 @@ quit ;
             , inset   = &_vdw_rx
             , datevar = rxdate
             , incvar  = incomplete_outpt_rx
-            , outset  = to_go.&_siteabbr._rx_rates
-            , outunenr = to_go.&_siteabbr._rx_unenrolled
+            , outset  = to_go.rx_rates
+            , outunenr = to_go.rx_unenrolled
             ) ;
+
 %mend do_all_rates ;
 
 %check_vars ;
@@ -1374,56 +1375,60 @@ ods rtf file = "%sysfunc(pathname(to_stay))/&_siteabbr._vdw_enroll_demog_qa.rtf"
   %draw_heatmap ;
 
   title2 "Completeness of VDW Data for &_SiteName" ;
-  %graph_capture(rateset = to_go.&_siteabbr._rx_rates
+  %graph_capture(rateset = to_go.rx_rates
                 , incvar = incomplete_outpt_rx
                 , ylab = Pharmacy Fills
                 ) ;
 
-  %graph_capture(rateset = to_go.&_siteabbr._ute_out_rates_by_enctype (where = (extra = 'AV'))
+  %graph_capture(rateset = to_go.ute_out_rates_by_enctype (where = (extra = 'AV'))
                 , incvar = incomplete_outpt_enc
                 , ylab = Outpatient Encounters
                 ) ;
-  %graph_capture(rateset = to_go.&_siteabbr._ute_in_rates_by_enctype (where = (extra = 'IP'))
+  %graph_capture(rateset = to_go.ute_in_rates_by_enctype (where = (extra = 'IP'))
                 , incvar = incomplete_inpt_enc
                 , ylab = Inpatient Encounters
                 ) ;
 
-  %panel_ute(rateset = to_go.&_siteabbr._ute_out_rates_by_enctype (where = (extra in ('AV', 'EM', 'TE')))
+  %panel_ute(rateset = to_go.ute_out_rates_by_enctype (where = (extra in ('AV', 'EM', 'TE')))
               , incvar = incomplete_outpt_enc, rows = 1, cols = 3) ;
 
-  %panel_ute(rateset = to_go.&_siteabbr._ute_out_rates_by_enctype (where = (extra in ('ED', 'IP', 'IS')))
+  %panel_ute(rateset = to_go.ute_out_rates_by_enctype (where = (extra in ('ED', 'IP', 'IS')))
               , incvar = incomplete_outpt_enc, rows = 1, cols = 3) ;
 
-  %panel_ute(rateset = to_go.&_siteabbr._ute_out_rates_by_enctype (where = (extra in ('LO', 'RO', 'OE')))
+  %panel_ute(rateset = to_go.ute_out_rates_by_enctype (where = (extra in ('LO', 'RO', 'OE')))
               , incvar = incomplete_outpt_enc, rows = 1, cols = 3) ;
 
   %graph_capture(incvar  = incomplete_tumor
-                , rateset  = to_go.&_siteabbr._tumor_rates
+                , rateset  = to_go.tumor_rates
                 , ylab = Tumor Registry
                 ) ;
   %graph_capture(incvar  = incomplete_lab
-                , rateset  = to_go.&_siteabbr._lab_rates
+                , rateset  = to_go.lab_rates
                 , ylab = Lab Results
                 ) ;
   %graph_capture(incvar  = incomplete_emr
-                , rateset  = to_go.&_siteabbr._emr_s_rates
+                , rateset  = to_go.emr_s_rates
                 , ylab = EMR Data (Social History)
                 ) ;
   %graph_capture(incvar  = incomplete_emr
-                , rateset  = to_go.&_siteabbr._emr_v_rates
+                , rateset  = to_go.emr_v_rates
                 , ylab = EMR Data (Vital Signs)
                 ) ;
 
   title2 "Counts of Data Events outside of Enrollment Periods" ;
 
-  %graph_unenrolled(inset = to_go.&_siteabbr._rx_unenrolled , ylab = %str(Pharmacy fills)) ;
-  %graph_unenrolled(inset = to_go.&_siteabbr._enc_unenrolled, ylab = %str(Encounters)) ;
-  %graph_unenrolled(inset = to_go.&_siteabbr._lab_unenrolled, ylab = %str(Lab Results)) ;
-  %graph_unenrolled(inset = to_go.&_siteabbr._tum_unenrolled, ylab = %str(Tumors)) ;
-  %graph_unenrolled(inset = to_go.&_siteabbr._vsn_unenrolled, ylab = %str(Vital Signs)) ;
-  %graph_unenrolled(inset = to_go.&_siteabbr._shx_unenrolled, ylab = %str(Social History)) ;
+  %graph_unenrolled(inset = to_go.rx_unenrolled , ylab = %str(Pharmacy fills)) ;
+  %graph_unenrolled(inset = to_go.enc_unenrolled, ylab = %str(Encounters)) ;
+  %graph_unenrolled(inset = to_go.lab_unenrolled, ylab = %str(Lab Results)) ;
+  %graph_unenrolled(inset = to_go.tum_unenrolled, ylab = %str(Tumors)) ;
+  %graph_unenrolled(inset = to_go.vsn_unenrolled, ylab = %str(Vital Signs)) ;
+  %graph_unenrolled(inset = to_go.shx_unenrolled, ylab = %str(Social History)) ;
 
 run ;
 
 ods _all_ close ;
+
+%stack_datasets(inlib = to_go, nom = rates     , outlib = to_go, srcvar = dset, outnom = &_siteabbr._data_rates, delete_insets = yes) ;
+%stack_datasets(inlib = to_go, nom = unenrolled, outlib = to_go, srcvar = dset, outnom = &_siteabbr._unenrl_rates, delete_insets = yes) ;
+
 

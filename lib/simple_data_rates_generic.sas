@@ -46,7 +46,7 @@ quit ;
               , datevar   =               /* name of the relevant date var (adate, rxdate, etc.) */
               , incvar    =               /* name of the incomplete_* var we are testing. */
               , outset    =               /* what to call the output dataset of rates. */
-              , extra_var = -1            /* name of additional var to break rates out by--say, enctype for ute. */
+              , extra_var = 'XX'          /* name of additional var to break rates out by--say, enctype for ute. */
               , enrlset   = &_vdw_enroll  /* Whats our source for start/stop periods? */
               , startvar  = enr_start     /* name of the var signifying periodstarts in the enrlset data. */
               , endvar    = enr_end       /* name of the var signifying period ends in the enrlset data. */
