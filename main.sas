@@ -113,6 +113,7 @@ run ;
 
 %include vdw_macs ;
 
+%include "&root./lib/stack_datasets.sas" ;
 %include "&root./lib/qa_formats.sas" ;
 %include "&root./lib/vdw_lang_qa.sas" ;
 %include "&root./lib/simple_data_rates_generic.sas" ;
