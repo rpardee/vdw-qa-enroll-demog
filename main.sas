@@ -14,7 +14,7 @@
 *********************************************/
 
 * If roy forgets to comment this out, please do so.  Thanks/sorry! ;
-* %include "h:/SAS/Scripts/remoteactivate.sas" ;
+%include "h:/SAS/Scripts/remoteactivate.sas" ;
 
 options
   linesize  = 150
@@ -42,7 +42,7 @@ libname _all_ clear ;
 %include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/StdVars.sas" ;
 
 * Please edit this so it points to the location where you unzipped the files/folders. ;
-%let root = //groups/data/ctrhs/chs/pardre1/repos/voc_enroll ;
+%let root = \\groups\data\CTRHS\Crn\voc\enrollment\programs ;
 
 * Some sites are having trouble w/the calls to SGPlot--if you want to try to get the graphs please set this var to false. ;
 * If you do and get errors, please keep it set to true. ;
@@ -52,7 +52,7 @@ libname _all_ clear ;
 * Please set start_year to your earliest date of enrollment data. ;
 %let start_year = 1988 ;
 * Please set end_year to the last complete year of data. ;
-%let end_year = 2018 ;
+%let end_year = 2019 ;
 %let end_year = %sysfunc(intnx(year, "&sysdate9"d, -1, end), year4.) ;
 
 * Optional--set to a number of records or the string false to limit the number of records offending ;
@@ -89,7 +89,7 @@ libname _all_ clear ;
   tries this out.
 */
 
-* libname mylib teradata
+libname mylib teradata
   user              = "&nuid@LDAP"
   password          = "&cspassword"
   server            = "&td_prod"
@@ -100,8 +100,8 @@ libname _all_ clear ;
   fastload          = yes
 ;
 
-%let tmplib = work ;
-* %let tmplib = mylib ;
+* %let tmplib = work ;
+%let tmplib = mylib ;
 
 ****************** end edit section ****************************** ;
 ****************** end edit section ****************************** ;
@@ -120,5 +120,4 @@ run ;
 %include "&root./lib/graph_data_rates.sas" ;
 
 %include "&root./lib/vdw_enroll_demog_qa.sas" ;
-
 

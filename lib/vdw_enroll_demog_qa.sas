@@ -925,7 +925,9 @@ quit ;
     select g.mrn
         , year
         , put(%calcage(birth_date, refdate = mdy(1, 1, year)), agecat.) as agegroup label = "Age on 1-jan of [[year]]"
-        , gender
+        , sex_admin
+        , gender_identity
+        , sex_at_birth
         , put(race1, $race.)              as race length = 10
         , put(hispanic            , $cd.) as hispanic
         , put(needs_interpreter   , $cd.) as needs_interpreter
@@ -966,7 +968,9 @@ quit ;
     %local vlist ;
     %let vlist = year
             , agegroup
-            , gender
+            , sex_admin
+            , gender_identity
+            , sex_at_birth
             , race
             , hispanic
             , needs_interpreter
@@ -1016,7 +1020,9 @@ quit ;
       label
         year                  = "Year of Enrollment"
         agegroup              = "Age Group"
-        gender                = "Gender of Enrollee"
+        sex_admin             = "Sex of Enrollee"
+        gender_identity       = "Gender Identity"
+        sex_at_birth          = "Sex Assigned At Birth"
         race                  = "Race of Enrollee"
         hispanic              = "Enrollee is Hispanic?"
         needs_interpreter     = "Enrollee Needs an Interpreter?"
@@ -1095,7 +1101,9 @@ quit ;
       plan_pos
       plan_ppo
       agegroup
-      gender
+      sex_admin
+      gender_identity
+      sex_at_birth
       race
       hispanic
       needs_interpreter
@@ -1153,13 +1161,13 @@ quit ;
 
   data &outset ;
     length
-      gender $ 1
+      sex_admin $ 1
       var_name $ 20
       value $ 20
       count 8
       percent 8
     ;
-    call missing(gender, var_name, value, count, percent) ;
+    call missing(sex_admin, var_name, value, count, percent) ;
     if count ;
   run ;
 
@@ -1181,7 +1189,7 @@ quit ;
 
   %do %until(&this_var = ) ;
     proc freq data = &_vdw_demographic order = formatted ;
-      tables &this_var * gender / missing format = msk. out = gnu plots = none ;
+      tables &this_var * sex_admin / missing format = msk. out = gnu plots = none ;
       format &this_var ;
     run ;
 
@@ -1193,7 +1201,7 @@ quit ;
       ods graphics / height = 6in width = 10in ;
 
       proc sgplot data = gnu ;
-        vbar &this_var / response = count group = gender stat = sum ;
+        vbar &this_var / response = count group = sex_admin stat = sum ;
         format count comma10.0 ;
         xaxis grid ;
         yaxis grid ;
@@ -1201,8 +1209,8 @@ quit ;
     %end ;
 
     proc sql ;
-      insert into &outset (gender, var_name, value, count, percent)
-      select gender, "&this_var", &this_var, count, percent
+      insert into &outset (sex_admin, var_name, value, count, percent)
+      select sex_admin, "&this_var", &this_var, count, percent
       from gnu
       ;
       drop table gnu ;
@@ -1428,7 +1436,12 @@ run ;
 
 ods _all_ close ;
 
-%stack_datasets(inlib = to_go, nom = rates     , outlib = to_go, srcvar = dset, outnom = &_siteabbr._data_rates, delete_insets = yes) ;
-%stack_datasets(inlib = to_go, nom = unenrolled, outlib = to_go, srcvar = dset, outnom = &_siteabbr._unenrl_rates, delete_insets = yes) ;
+%removedset(dset = to_go.&_siteabbr._data_rates) ;
+%removedset(dset = to_go.&_siteabbr._data_rates_by_enctype) ;
+%removedset(dset = to_go.&_siteabbr._unenrl_rates) ;
+
+%stack_datasets(inlib = to_go, nom = rates            , outlib = to_go, srcvar = dset, outnom = &_siteabbr._data_rates            , delete_insets = yes) ;
+%stack_datasets(inlib = to_go, nom = rates_by_enctype , outlib = to_go, srcvar = dset, outnom = &_siteabbr._data_rates_by_enctype , delete_insets = yes) ;
+%stack_datasets(inlib = to_go, nom = unenrolled       , outlib = to_go, srcvar = dset, outnom = &_siteabbr._unenrl_rates          , delete_insets = yes) ;
 
 
