@@ -65,7 +65,7 @@ quit ;
     data &outset ;
       set &tmplib..inflate_months ;
       &incvar = '?' ;
-      extra = -1 ;
+      extra = '--' ;
       n = 0 ;
       num_events = 0 ;
       rate = . ;
