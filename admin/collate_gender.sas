@@ -27,8 +27,8 @@ options
 
 %let prgs = \\groups\data\CTRHS\Crn\voc\enrollment\programs ;
 
-libname raw "&prgs\qa_results\raw" ;
-libname col "&prgs\qa_results" ;
+libname raw "&prgs\submitted_data\raw" ;
+libname col "&prgs\submitted_data" ;
 
 proc format cntlout = sites ;
   value $s (default = 22)
@@ -204,12 +204,25 @@ proc format cntlout = sites ;
   ;
 quit ;
 
+%macro msk(dset) ;
+  proc sql ;
+    update &dset
+    set count = .a, percent = .a, pct_row = .a, pct_col = .a
+    where count le 10
+    ;
+  quit ;
+%mend msk ;
+
 %macro regen ;
 
   %stack_datasets(inlib = raw, nom = sex_admin_counts, outlib = col) ;
   %stack_datasets(inlib = raw, nom = gender_identity_counts, outlib = col) ;
   %stack_datasets(inlib = raw, nom = sex_at_birth_counts, outlib = col) ;
   %stack_datasets(inlib = raw, nom = gender_results, outlib = col) ;
+
+  %msk(dset = col.sex_admin_counts) ;
+  %msk(dset = col.gender_identity_counts) ;
+  %msk(dset = col.sex_at_birth_counts) ;
 
   data res ;
     set col.gender_results ;

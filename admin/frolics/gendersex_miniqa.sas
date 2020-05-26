@@ -10,7 +10,7 @@
 * https://www.hcsrn.org/share/page/site/VDW/document-details?nodeRef=workspace://SpacesStore/ef38035c-4e7c-4d02-b7cc-cb9f082eade0
 *********************************************/
 * Please comment this out if I forget to. Thank you/sorry! ;
-%include "h:/SAS/Scripts/remoteactivate.sas" ;
+* %include "h:/SAS/Scripts/remoteactivate.sas" ;
 
 options
   linesize  = 150
@@ -184,6 +184,14 @@ run ;
         tables &&name&i * gender / missing format = comma9.0 out = to_go.&_SiteAbbr._&&name&i.._counts outpct ;
       %end ;
     run ;
+
+    proc sql ;
+      %do i = 1 %to &num_vars ;
+        update to_go.&_SiteAbbr._&&name&i.._counts
+        set count = .a, percent = .a, pct_row = .a, pct_col = .a
+        where count le &lowest_count ;
+      %end ;
+    quit ;
   %end ;
 
   proc print data = to_go.&_siteabbr._gender_results ;
