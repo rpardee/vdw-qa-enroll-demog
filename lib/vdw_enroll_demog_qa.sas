@@ -1150,7 +1150,7 @@ quit ;
   proc sql ;
     update &outset
     set count = .a, percent = .a
-    where count between 1 and &lowest_count
+    where count between .000001 and &lowest_count
     ;
   quit ;
 %mend enroll_tier_one_point_five ;
@@ -1222,7 +1222,7 @@ quit ;
   proc sql ;
     update &outset
     set count = .a, percent = .a
-    where count between 1 and &lowest_count
+    where count between .000001 and &lowest_count
     ;
   quit ;
 %mend demog_tier_one_point_five ;
@@ -1467,6 +1467,8 @@ data to_go.&_siteabbr._capture_rates ;
     when('to_stay.ute_out_rates_by_enctype')  capture_var = 'incomplete_outpt_enc';
     when('to_stay.ute_in_rates_by_enctype')   capture_var = 'incomplete_inpt_enc' ;
     otherwise capture_var = 'zah?' ;
+    if n_unenrolled le &lowest_count then n_unenrolled = .a ;
+    if n_total      le &lowest_count then n_total = .a ;
   end ;
 run ;
 
