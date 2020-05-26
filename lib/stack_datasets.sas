@@ -20,8 +20,6 @@
 
   %if &outnom = %then %let outnom = &nom ;
 
-  %removedset(dset = &outlib..&outnom) ;
-
   %local i rgx ;
   %let rgx = (.*)_&nom.\s*$ ;
 
