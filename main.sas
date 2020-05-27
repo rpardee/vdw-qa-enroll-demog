@@ -33,8 +33,6 @@ options
 **************** begin edit section ****************************** ;
 **************** begin edit section ****************************** ;
 
-* This is a new comment to show Hsienlin about git!!! ;
-
 * Undefine all libnames, just in case I rely on GHC-specific nonstandard ones downstream. ;
 libname _all_ clear ;
 
@@ -121,3 +119,4 @@ run ;
 
 %include "&root./lib/vdw_enroll_demog_qa.sas" ;
 
+* HI DAN!!! ;
