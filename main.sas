@@ -14,7 +14,7 @@
 *********************************************/
 
 * If roy forgets to comment this out, please do so.  Thanks/sorry! ;
-%include "h:/SAS/Scripts/remoteactivate.sas" ;
+* %include "h:/SAS/Scripts/remoteactivate.sas" ;
 
 options
   linesize  = 150
@@ -89,7 +89,7 @@ libname _all_ clear ;
   tries this out.
 */
 
-libname mylib teradata
+* libname mylib teradata
   user              = "&nuid@LDAP"
   password          = "&cspassword"
   server            = "&td_prod"
@@ -100,8 +100,8 @@ libname mylib teradata
   fastload          = yes
 ;
 
-* %let tmplib = work ;
-%let tmplib = mylib ;
+%let tmplib = work ;
+* %let tmplib = mylib ;
 
 ****************** end edit section ****************************** ;
 ****************** end edit section ****************************** ;
