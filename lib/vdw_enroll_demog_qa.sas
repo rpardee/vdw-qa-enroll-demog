@@ -1467,9 +1467,9 @@ data to_go.&_siteabbr._capture_rates ;
     when('to_stay.ute_out_rates_by_enctype')  capture_var = 'incomplete_outpt_enc';
     when('to_stay.ute_in_rates_by_enctype')   capture_var = 'incomplete_inpt_enc' ;
     otherwise capture_var = 'zah?' ;
-    if n_unenrolled le &lowest_count then n_unenrolled = .a ;
-    if n_total      le &lowest_count then n_total = .a ;
   end ;
+  if n_unenrolled le &lowest_count then n_unenrolled = .a ;
+  if n_total      le &lowest_count then n_total = .a ;
 run ;
 
 %removedset(dset = to_stay.lab_rates) ;
