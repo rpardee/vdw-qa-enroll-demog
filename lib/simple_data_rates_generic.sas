@@ -189,8 +189,8 @@ quit ;
 
   %if %length(&outunenr) > 0 %then %do ;
     data &outunenr ;
-      set &outenr ;
-      if min(n_total, n_unenrolled, 0) le &lowest_count then do ;
+      set &outunenr ;
+      if min(coalesce(n_total, 100), coalesce(n_unenrolled, 100)) le &lowest_count then do ;
         n_unenrolled          = .a ;
         n_total               = .a ;
         proportion_unenrolled = .a ;
