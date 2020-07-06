@@ -83,6 +83,34 @@ proc format cntlout = sites ;
     'O' = 'Other Gender'
     'U' = 'Unknown Gender'
   ;
+  value $sexadm
+    'F'   = 'Female'
+    'M'   = 'Male'
+    'X'   = 'Neither Male Nor Female'
+    'O'   = 'Other'
+    'U'   = 'Unknown /uncertain / missing'
+    other = 'bad'
+  ;
+  value $sexaab
+    'F'   = 'Female'
+    'M'   = 'Male'
+    'I'   = 'Intersex'
+    'O'   = 'Other'
+    'U'   = 'Uncertain, Unknown or Not recorded on birth certificate'
+    'C'   = 'Choose not to disclose'
+    other = 'bad'
+  ;
+  value $gi
+    'FF'  = 'Female'
+    'MM'  = 'Male'
+    'FM'  = 'F to M'
+    'MF'  = 'M to F'
+    'GQ'  = 'Genderqueer'
+    'OT'  = 'Other'
+    'ND'  = 'Undisclosed'
+    'UN'  = 'Unknown'
+    other = 'bad'
+  ;
   value $ta
     '00to', '00to04'    = '3'
     '05to', '05to09'    = '8'
@@ -102,106 +130,7 @@ proc format cntlout = sites ;
     20  -< 64 = '20 to 64'
     65 - high = '65+'
   ;
-  value $v
-    '00to', '00to04'    = '< 5'
-    '05to', '05to09'    = '5 - 9'
-    '10to', '10to14'    = '10 - 14'
-    '15to', '15to19'    = '15 - 19'
-    '20to', '20to29'    = '20 - 29'
-    '30to', '30to39'    = '30 - 39'
-    '40to', '40to49'    = '40 - 49'
-    '50to', '50to59'    = '50 - 59'
-    '60to', '60to64'    = '60 - 64'
-    '65to', '65to69'    = '65 - 69'
-    '70to', '70to74'    = '70 - 74'
-    'ge_7', 'ge_75'     = '>= 75'
-    'Asia', 'Asian'     = 'Asian'
-    'Blac', 'Black'     = 'Black/African American'
-    'Unkn', 'Unknown'   = 'Unknown'
-    'Whit', 'White'     = 'White'
-    'Nati', 'Native'    = 'Native American'
-    'Pac' , 'Pac Isl'   = 'Pacific Islander'
-    'Both'              = 'Both'
-    'Insu', 'Insurance' = 'Insurance'
-    'Non-'              = 'Non-member patient'
-    'M'                 = 'Male'
-    'F'                 = 'Female'
-    'O'                 = 'Other'
-    'Y'                 = 'Yes'
-    'N'                 = 'No'
-    'U'                 = 'Unknown'
-    'E'                 = 'External'
-    'K'                 = 'Yes, known to be incomplete'
-    'X'                 = 'Not implemented'
-  ;
-  value $vars
-      'agegroup'            = 'Age of Enrollees'
-      'drugcov'             = 'Has at least "some" drug coverage?'
-      'enrollment_basis'    = 'Basis for including this person/period in Enrollment'
-      'gender'              = 'Gender'
-      'hispanic'            = 'Is Hispanic?'
-      'ins_commercial'      = 'Has Commercial Coverage?'
-      'ins_highdeductible'  = 'Has coverage in a High Deductible Plan?'
-      'ins_medicaid'        = 'Has Medicaid coverage?'
-      'ins_medicare'        = 'Has Medicare coverage?'
-      'ins_medicare_a'      = 'Has medicare part A coverage?'
-      'ins_medicare_b'      = 'Has medicare part B coverage?'
-      'ins_medicare_c'      = 'Has medicare part C coverage?'
-      'ins_medicare_d'      = 'Has medicare part D coverage?'
-      'ins_other'           = 'Has "other" type insurance coverage?'
-      'ins_privatepay'      = 'Has Private Pay coverage?'
-      'ins_selffunded'      = 'Has Self-Funded coverage?'
-      'ins_statesubsidized' = 'Has State-subsidized coverage?'
-      'needs_interpreter'   = 'Needs an interpreter?'
-      'outside_utilization' = 'Do we know VDW rx/encounter capture is incomplete for this person/period?'
-      'pcc_probably_valid'  = 'Valid Primary Care Clinic assigned?'
-      'pcp_probably_valid'  = 'Valid Primary Care Physician assigned?'
-      'plan_hmo'            = 'Enrolled in an HMO Plan?'
-      'plan_indemnity'      = 'Enrolled in an Indemnity plan?'
-      'plan_pos'            = 'Enrolled in a Point-Of-Service plan?'
-      'plan_ppo'            = 'Enrolled in a Preferred Provider Organization plan?'
-      'race'                = 'Race/Ethnicity'
-      'incomplete_emr'      = 'Capture of EMR data known incomplete?'
-      'incomplete_inpt_enc' = 'Capture of inpatient encounters known incomplete?'
-      'incomplete_lab'      = 'Capture of lab results known incomplete?'
-      'incomplete_outpt_enc'= 'Capture of outpatient encounters known incomplete?'
-      'incomplete_outpt_rx' = 'Capture of outpatient pharmacy known incomplete?'
-      'incomplete_tumor'    = 'Capture of tumor data known incomplete?'
-  ;
-  value $varcat
-      'agegroup'            = 'Demogs'
-      'gender'              = 'Demogs'
-      'hispanic'            = 'Demogs'
-      'race'                = 'Demogs'
-      'needs_interpreter'   = 'Demogs'
-      'drugcov'             = 'Benefit'
-      'enrollment_basis'    = 'Meta'
-      'outside_utilization' = 'Meta'
-      'pcc_probably_valid'  = 'Meta'
-      'pcp_probably_valid'  = 'Meta'
-      'incomplete_emr'      = 'Meta'
-      'incomplete_inpt_enc' = 'Meta'
-      'incomplete_lab'      = 'Meta'
-      'incomplete_outpt_enc'= 'Meta'
-      'incomplete_outpt_rx' = 'Meta'
-      'incomplete_tumor'    = 'Meta'
-      'ins_commercial'      = 'Ins type'
-      'ins_highdeductible'  = 'Ins type'
-      'ins_medicaid'        = 'Ins type'
-      'ins_medicare'        = 'Ins type'
-      'ins_medicare_a'      = 'Ins type'
-      'ins_medicare_b'      = 'Ins type'
-      'ins_medicare_c'      = 'Ins type'
-      'ins_medicare_d'      = 'Ins type'
-      'ins_other'           = 'Ins type'
-      'ins_privatepay'      = 'Ins type'
-      'ins_selffunded'      = 'Ins type'
-      'ins_statesubsidized' = 'Ins type'
-      'plan_hmo'            = 'Plan type'
-      'plan_indemnity'      = 'Plan type'
-      'plan_pos'            = 'Plan type'
-      'plan_ppo'            = 'Plan type'
-  ;
+
 quit ;
 
 %macro msk(dset) ;
@@ -246,7 +175,7 @@ quit ;
 
 %mend regen ;
 
-%regen ;
+* %regen ;
 
   proc sql number ;
     * describe table dictionary.tables ;
@@ -272,11 +201,31 @@ quit ;
     ;
   quit ;
 
+%macro show_interesting_pcts(dset = , var = , fmt = , panopts = %str(columns = 3 rows = 5)) ;
+
+  proc freq data = &dset order = freq noprint ;
+    tables &var * site / missing format = comma9.0 out = gi_freqs outpct ;
+    weight count ;
+  run ;
+
+  proc sgpanel data = gi_freqs ;
+    panelby site / novarname &panopts uniscale = column ;
+    vbar &var / response = pct_col ;
+    rowaxis grid ;
+    colaxis display = (nolabel) ;
+    format site $s. &var &fmt ;
+    where &var not in ('UN', 'U') ;
+    attrib pct_col label = "Percent of Records in DEMOGRAPHICS" ;
+  run ;
+%mend show_interesting_pcts ;
+
+
 options orientation = landscape ;
 ods graphics / height = 8in width = 10in ;
 
 %let out_folder = \\groups\data\CTRHS\Crn\voc\enrollment\reports_presentations\gendersex ;
 
+ods listing close ;
 ods html5 path = "&out_folder" (URL=NONE)
          body   = "collate_gender.html"
          (title = "collate_gender output")
@@ -285,35 +234,45 @@ ods html5 path = "&out_folder" (URL=NONE)
          device = svg
           ;
 
-ods word file = "&out_folder.collate_gender.docx" ;
-    title1 "Gender/Sex Mini-QA" ;
-    title2 "Sites submitting Results" ;
-    ods graphics / imagename = "submitting_sites" ;
-    proc sgplot data = submitting_sites ;
-      dot site / response = date_submitted markerattrs= (size = 5mm symbol = circlefilled) ;
-      xaxis grid max='04-mar-2021'd ;
-    run ;
+* ods word file = "&out_folder.collate_gender.docx" ;
 
-    proc print label  data = col.gender_results ;
-      id check ;
-    run ;
+  title1 "Gender/Sex Mini-QA" ;
+  title2 "Sites submitting Results" ;
+  ods graphics / imagename = "submitting_sites" ;
+  proc sgplot data = submitting_sites ;
+    dot site / response = date_submitted markerattrs= (size = 5mm symbol = circlefilled) ;
+    xaxis grid max='04-mar-2021'd ;
+  run ;
 
-    proc sql noprint ;
-      create table sex_agreement as
-      select site, sum(percent) as percent_agrees
-      from col.sex_admin_counts
-      where sex_admin = gender
-      group by site
-      ;
-    quit ;
+  proc print label  data = col.gender_results ;
+    id check ;
+  run ;
 
-    title2 "Agreement between the old GENDER var and the new SEX_ADMIN var" ;
-    proc sgplot data = sex_agreement ;
-      hbar site / response = percent_agrees ;
-      format site $s. ;
-      xaxis grid label = "Percent Agreement" ;
-      yaxis display = (nolabel) ;
-    run ;
+  proc sql noprint ;
+    create table sex_agreement as
+    select site, sum(percent) as percent_agrees
+    from col.sex_admin_counts
+    where sex_admin = gender
+    group by site
+    ;
+  quit ;
+
+  title2 "Agreement between the old GENDER var and the new SEX_ADMIN var" ;
+  proc sgplot data = sex_agreement ;
+    hbar site / response = percent_agrees ;
+    format site $s. ;
+    xaxis grid label = "Percent Agreement" ;
+    yaxis display = (nolabel) ;
+  run ;
+
+  title2 "Gender Identity" ;
+  %show_interesting_pcts(dset = col.gender_identity_counts, var = gender_identity, fmt = $gi.) ;
+
+  title2 "Administrative Sex" ;
+  %show_interesting_pcts(dset = col.sex_admin_counts, var = sex_admin, fmt = $sexadm., panopts = %str(columns = 4 rows = 4)) ;
+
+  title2 "Sex Assigned At Birth" ;
+  %show_interesting_pcts(dset = col.sex_at_birth_counts, var = sex_at_birth, fmt = $sexaab.) ;
 
 run ;
 
