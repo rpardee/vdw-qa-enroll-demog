@@ -25,21 +25,21 @@ options
 
 %include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/standard_macros.sas" ;
 
-%let prgs = \\groups\data\CTRHS\Crn\voc\enrollment\programs ;
+%let prgs = \\groups.ghc.org\data\CTRHS\Crn\voc\enrollment\programs ;
 
-libname raw "&prgs\qa_results\raw" ;
-libname col "&prgs\qa_results" ;
+libname raw "&prgs\submitted_data\raw" ;
+libname col "&prgs\submitted_data" ;
 
 * Until I can figure out how to read this off the issue tracker (url below) I ;
 * need to keep this shadow copy. Bleah. ;
-%let mdb_file = &prgs/qa_results/issue_memory.accdb ;
+%let mdb_file = &prgs/submitted_data/issue_memory.accdb ;
 libname mem ODBC required="Driver={Microsoft Access Driver (*.mdb, *.accdb)}; DBQ=&mdb_file" ;
 
 %let issue_url = %str(https://www.hcsrn.org/share/page/site/VDW/data-lists?list=f3c5ef15-334b-47f4-b6d3-aee37bedc057) ;
 
 * We need this so that lowest_count is defined. ;
 %include "&GHRIDW_ROOT/Sasdata/CRN_VDW/lib/StdVars.sas" ;
-%include "&prgs\staging\qa_formats.sas" ;
+%include "&prgs\lib\qa_formats.sas" ;
 
 proc format cntlout = sites ;
   value $s (default = 22)
@@ -704,6 +704,17 @@ run ;
     format var_name $vars. pct percent8.0 ;
   run ;
 
+  title3 "Race: Non-White, Non-Unknown" ;
+  proc sgpanel data = gnu ;
+    panelby site / novarname uniscale = column columns = 5 rows = 4 ;
+    series x = year y = pct / group = value lineattrs = (thickness = &th pattern = solid) ;
+    colaxis grid ;
+    rowaxis grid ;
+    by vcat var_name ;
+    format var_name $vars. pct percent8.0 ;
+    where var_name = 'race' and value not in ('Unknown', 'White') ;
+  run ;
+
   * ROY--REMOVE THIS!!! ;
   * ods graphics / imagename = "delete_me" ;
   * title3 "Incomplete_* vars--implementing sites only" ;
@@ -862,7 +873,7 @@ run ;
   options byline ;
 %mend report_correlations ;
 
-%regen ;
+* %regen ;
 * endsas ;
 
 ods listing close ;
