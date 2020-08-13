@@ -9,7 +9,8 @@
 * Does comprehensive QA checks for the HMORN VDW's Enrollment & Demographics files.
 *
 * Please see the workplan found here:
-* https://www.hcsrn.org/share/page/site/VDW/wiki-page?title=Enroll-Demog-Lang%20QA%20for%20HCSRN%202016%20Annual%20Meeting
+* https://www.hcsrn.org/share/page/site/VDW/wiki-page?title=Enroll-Demog-Lang_QA_for_HCSRN_2020_Mid-Year_Meeting
+* and the readme.md file
 *
 *********************************************/
 

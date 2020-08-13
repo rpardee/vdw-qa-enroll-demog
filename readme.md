@@ -12,12 +12,15 @@ Roy Pardee (@kaiser-roy) & Paul Hitz
 ## Instructions
 
 1. Make a local copy of the package by either:
-    a. using git to clone [this repository](https://github.com/rpardee/vdw-qa-enroll-demog) (recommended) or
-    b. use a browser to download the repository [as a zip file](https://github.com/rpardee/vdw-qa-enroll-demog/archive/master.zip).
+      1. using git to clone [this repository](https://github.com/rpardee/vdw-qa-enroll-demog) (recommended) or
+      3. download the repository as a zip file from [the HCSRN portal](https://www.hcsrn.org/share/page/site/VDW/document-details?nodeRef=workspace://SpacesStore/13dc5a14-4caa-4058-ade6-305c40238afa) or
+      2. use a browser to download the repository from github [as a zip file](https://github.com/rpardee/vdw-qa-enroll-demog/archive/master.zip).
 2. Make the edits indicated at the beginning of main.sas, and then
 3. Run main.sas.
 
-Note git users only need to do step 1. above once.  For any subsequent runs, all you have to do is make sure you have the most recent changes to the code by running ```git pull origin master``` at a command line, or use your preferred git client (e.g., sourcetree, gitkraken) to perform that same operation.
+Note that the github repository is currently set to Private--get in touch with @kaiser-roy to be granted permissions to it.
+
+Note that git users only need to do step 1. above one time.  For any subsequent runs, all you have to do to make sure you have the current version of the code is run ```git pull origin master``` at a command line, or use your preferred git client (e.g., sourcetree, gitkraken) to perform that same operation.
 
 > _A Note On The descriptives for capture of EMR data_
 >
@@ -64,3 +67,27 @@ Please zip & send to @kaiser-roy via the [KPWHRI Secure File Transfer app](http:
     * ::site abbreviation::_enroll_duration_stats.sas7bdat - percentiles, mean & standard deviations for the durations of the enrollment periods at your site.
     * ::site abbreviation::capture_rates.sas7bdat - rates of records in other implemented VDW files for enrollees broken out by the appropriate incomplete_* field.
     * ::site abbreviation::_unenrl_rates.sas7bdat - rates of ute, lab, tumor, rx, social hx & vitals records that fall outside of an enrollment period.
+
+Sites Requested 
+----------------
+
+| Site | Status | Completion Date | Comments |
+| --- | --- | --- | --- |
+| Baylor Scott & White | Incomplete |   |   |
+| Essentia | Incomplete |   |   |
+| Fallon/Meyers | Incomplete |   |   |
+| Geisinger | Incomplete |   |   |
+| Harvard Pilgrim | Incomplete |   |   |
+| HealthPartners | Incomplete |   |   |
+| Henry Ford | Incomplete |   |   |
+| KP Colorado | Incomplete |   |   |
+| KP Georgia | Incomplete |   |   |
+| KP Hawaii | Incomplete |   |   |
+| KP Mid-Atlantic | Incomplete |   |   |
+| KP Northern California | Incomplete |   |   |
+| KP Northwest | Complete | 6/30/2020 | Testing site--THANK YOU! |
+| KP Southern California | Incomplete |   |   |
+| KP Washington | Incomplete |   | Programming site. |
+| Marshfield | Incomplete |   |   |
+| Palo Alto Medical Foundation Research Institute | Incomplete |   |
+
