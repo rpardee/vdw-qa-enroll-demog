@@ -16,7 +16,7 @@ options
   pagesize  = 80
   msglevel  = i
   formchar  = '|-++++++++++=|-/|<>*'
-  dsoptions = note2err
+  /* dsoptions = note2err */
   nocenter
   noovp
   nosqlremerge
@@ -90,8 +90,9 @@ proc format cntlout = sites ;
   value $gen
     'M' = 'Male'
     'F' = 'Female'
-    'O' = 'Other Gender'
-    'U' = 'Unknown Gender'
+    'O' = 'Other'
+    'X' = 'Neither Male nor Female'
+    'U' = 'Unknown'
   ;
   value $ta
     '00to', '00to04'    = '3'
@@ -148,7 +149,7 @@ proc format cntlout = sites ;
       'agegroup'            = 'Age of Enrollees'
       'drugcov'             = 'Has at least "some" drug coverage?'
       'enrollment_basis'    = 'Basis for including this person/period in Enrollment'
-      'gender'              = 'Gender'
+      'sex_admin'           = 'Administrative Sex'
       'hispanic'            = 'Is Hispanic?'
       'ins_commercial'      = 'Has Commercial Coverage?'
       'ins_highdeductible'  = 'Has coverage in a High Deductible Plan?'
@@ -180,7 +181,7 @@ proc format cntlout = sites ;
   ;
   value $varcat
       'agegroup'            = 'Demogs'
-      'gender'              = 'Demogs'
+      'sex_admin'           = 'Demogs'
       'hispanic'            = 'Demogs'
       'race'                = 'Demogs'
       'needs_interpreter'   = 'Demogs'
@@ -237,8 +238,61 @@ run ;
     set col.&which._unenrolled ;
     if n_total then calc_prop_unenrolled = n_unenrolled / n_total ;
   run ;
-
 %mend stack_and_calc ;
+
+%macro reshuffle_capture_rates(inset = capture_rates, lib = s) ;
+  %stack_datasets(inlib = &lib, nom = &inset, outlib = &lib) ;
+
+  proc sql noprint ;
+    select distinct upcase(site) as site
+        , source_dset
+        , cats("&lib..", lowcase(site), '_', substr(source_dset, 9)) as destination_dset
+        , capture_var
+    into :s1-:s999, :sd1-:sd999, :dd1-:dd999, :cv1-:cv999
+    from &lib..&inset
+    order by site, source_dset
+    ;
+    %let num_rows = &SQLOBS ;
+  quit ;
+  data
+    %do i = 1 %to &num_rows ;
+      &&dd&i (rename = (capture = &&cv&i))
+    %end ;
+  ;
+    set &lib..&inset ;
+    %do i = 1 %to &num_rows ;
+      if upcase(site) = "&&s&i" and source_dset = "&&sd&i" then output &&dd&i ;
+    %end ;
+    drop site source_dset n_unenrolled n_total capture_var ;
+  run ;
+%mend reshuffle_capture_rates ;
+
+%macro reshuffle_unenrl_rates(inset = unenrl_rates, lib = s) ;
+  %stack_datasets(inlib = &lib, nom = &inset, outlib = &lib) ;
+  proc sql ;
+    select distinct upcase(site) as site
+        , dset
+        , cats("&lib..", lowcase(site), '_', lowcase(dset), '_unenrolled') as destination_dset
+    into :s1-:s999, :ds1-:ds999, :dd1-:dd999
+    from &lib..&inset
+    order by site, dset
+    ;
+    %let num_rows = &SQLOBS ;
+  quit ;
+  data
+    %do i = 1 %to &num_rows ;
+      &&dd&i
+    %end ;
+  ;
+    set &lib..&inset ;
+    %do i = 1 %to &num_rows ;
+      if upcase(site) = "&&s&i" and dset = "&&ds&i" then output &&dd&i ;
+    %end ;
+    drop site dset ;
+  run ;
+
+%mend reshuffle_unenrl_rates ;
+
 
 %macro do_results() ;
 
@@ -250,6 +304,8 @@ run ;
 
   %stack_datasets(inlib = raw, nom = enroll_duration_stats, outlib = col) ;
 
+  %reshuffle_capture_rates(inset = capture_rates, lib = raw) ;
+
   %stack_datasets(inlib = raw, nom = rx_rates, outlib = col) ;
   %stack_datasets(inlib = raw, nom = emr_s_rates, outlib = col) ;
   %stack_datasets(inlib = raw, nom = emr_v_rates, outlib = col) ;
@@ -257,6 +313,8 @@ run ;
   %stack_datasets(inlib = raw, nom = tumor_rates, outlib = col) ;
   %stack_datasets(inlib = raw, nom = ute_in_rates_by_enctype, outlib = col) ;
   %stack_datasets(inlib = raw, nom = ute_out_rates_by_enctype, outlib = col) ;
+
+  %reshuffle_unenrl_rates(inset = unenrl_rates, lib = raw) ;
 
   %stack_and_calc(which = rx) ;
   %stack_and_calc(which = enc) ;
@@ -484,7 +542,7 @@ run ;
   %do_results ;
   %do_vars ;
   %do_freqs(nom = enroll_freqs, byvar = year) ;
-  %do_freqs(nom = demog_freqs, byvar = gender) ;
+  %do_freqs(nom = demog_freqs, byvar = sex_admin) ;
 
   proc sql noexec ;
     delete from col.enroll_freqs
@@ -739,7 +797,7 @@ run ;
 
 %macro report_demog() ;
   proc sort data = col.demog_freqs out = gnu ;
-    by var_name gender value site ;
+    by var_name sex_admin value site ;
     where value not in ('unk', 'und') and var_name not in ('race2', 'race3', 'race4', 'race5') ;
     * where var_name in ('hispanic') ; * AND value not in ('U', 'N') ;
   run ;
@@ -770,51 +828,51 @@ run ;
   title2 "Demographics Descriptives" ;
   ods graphics / imagename = "demog_vars" ;
   proc sgpanel data = generic ;
-    panelby gender / novarname uniscale = column ;
-    * vbar site / response = pct2 group = gender stat = sum ;
+    panelby sex_admin / novarname uniscale = column ;
+    * vbar site / response = pct2 group = sex_admin stat = sum ;
     vbar site / response = pct2 group = value stat = sum ;
     by var_name ;
-    format gender $gen. ;
+    format sex_admin $gen. ;
   run ;
 
   title3 "Common Values for Language" ;
   ods graphics / imagename = "common_language" ;
   proc sgpanel data = lang ;
-    panelby gender / novarname uniscale = column ;
-    * vbar site / response = pct2 group = gender stat = sum ;
+    panelby sex_admin / novarname uniscale = column ;
+    * vbar site / response = pct2 group = sex_admin stat = sum ;
     vbar site / response = pct2 group = value stat = sum ;
-    format gender $gen. ;
+    format sex_admin $gen. ;
     where lang_type = 'common' ;
   run ;
 
   title3 "Uncommon Values for Language" ;
   ods graphics / imagename = "uncommon_language" ;
   proc sgpanel data = lang ;
-    panelby gender / novarname uniscale = column ;
-    * vbar site / response = pct2 group = gender stat = sum ;
+    panelby sex_admin / novarname uniscale = column ;
+    * vbar site / response = pct2 group = sex_admin stat = sum ;
     vbar site / response = pct2 group = value stat = sum ;
-    format gender $gen. ;
+    format sex_admin $gen. ;
     where lang_type = 'uncommon' ;
   run ;
 
   title3 "Common Values for Race" ;
   ods graphics / imagename = "common_race" ;
   proc sgpanel data = race ;
-    panelby gender / novarname uniscale = column ;
-    * vbar site / response = pct2 group = gender stat = sum ;
+    panelby sex_admin / novarname uniscale = column ;
+    * vbar site / response = pct2 group = sex_admin stat = sum ;
     vbar site / response = pct2 group = value stat = sum ;
     where race_type = 'common' ;
-    format value $race. gender $gen. ;
+    format value $race. sex_admin $gen. ;
   run ;
 
   title3 "Uncommon Values for Race" ;
   ods graphics / imagename = "uncommon_race" ;
   proc sgpanel data = race ;
-    panelby gender / novarname uniscale = column ;
-    * vbar site / response = pct2 group = gender stat = sum ;
+    panelby sex_admin / novarname uniscale = column ;
+    * vbar site / response = pct2 group = sex_admin stat = sum ;
     vbar site / response = pct2 group = value stat = sum ;
     where race_type = 'uncommon' ;
-    format value $race. gender $gen. ;
+    format value $race. sex_admin $gen. ;
   run ;
 %mend report_demog ;
 
@@ -872,6 +930,7 @@ run ;
 
   options byline ;
 %mend report_correlations ;
+
 
 * %regen ;
 * endsas ;
