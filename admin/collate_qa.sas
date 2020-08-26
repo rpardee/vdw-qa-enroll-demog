@@ -47,6 +47,7 @@ proc format cntlout = sites ;
     /* 'LCF'  = 'Lovelace' */
     /* "FAL"  = "Fallon Community Health Plan" */
     /* "LHS"  = "Lovelace Health Systems" */
+    /* 'PAMF' = 'Palo Alto' */
     'HPHC' = 'Harvard'
     'HPI'  = 'HealthPartners'
     'MCRF' = 'Marshfield'
@@ -55,7 +56,7 @@ proc format cntlout = sites ;
     'GHS'  = 'Geisinger'
     'GHC'  = 'KP Washington'
     'KPWA' = 'KP Washington'
-    'PAMF' = 'Palo Alto'
+    'SH'   = 'Sutter Health (nee Palo Alto)'
     'EIRH' = 'Essentia'
     'KPCO' = 'KP Colorado'
     'KPNW' = 'KP Northwest'
@@ -932,7 +933,7 @@ run ;
 %mend report_correlations ;
 
 
-* %regen ;
+%regen ;
 * endsas ;
 
 ods listing close ;
