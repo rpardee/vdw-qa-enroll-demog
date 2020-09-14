@@ -217,6 +217,16 @@ quit ;
     where &var not in ('UN', 'U') ;
     attrib pct_col label = "Percent of Records in DEMOGRAPHICS" ;
   run ;
+
+  proc sgpanel data = gi_freqs ;
+    panelby site / novarname &panopts ;
+    vbar &var / response = pct_col ;
+    rowaxis grid ;
+    colaxis display = (nolabel) ;
+    format site $s. &var &fmt ;
+    where &var not in ('UN', 'U') ;
+    attrib pct_col label = "Percent of Records in DEMOGRAPHICS" ;
+  run ;
 %mend show_interesting_pcts ;
 
 

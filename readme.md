@@ -73,21 +73,21 @@ Sites Requested 
 
 | Site | Status | Completion Date | Comments |
 | --- | --- | --- | --- |
-| Baylor Scott & White | Incomplete |   |   |
-| Essentia | Incomplete |   |   |
-| Fallon/Meyers | Incomplete |   |   |
-| Geisinger | Incomplete |   |   |
+| Baylor Scott & White | Complete |   |   |
+| Essentia | Complete |   |   |
+| Fallon/Meyers | Complete |   |   |
+| Geisinger | Complete |   |   |
 | Harvard Pilgrim | Incomplete |   |   |
 | HealthPartners | Incomplete |   |   |
-| Henry Ford | Incomplete |   |   |
-| KP Colorado | Incomplete |   |   |
-| KP Georgia | Incomplete |   |   |
-| KP Hawaii | Incomplete |   |   |
-| KP Mid-Atlantic | Incomplete |   |   |
-| KP Northern California | Incomplete |   |   |
+| Henry Ford | Complete |   |   |
+| KP Colorado | Complete |   |   |
+| KP Georgia | Complete |   |   |
+| KP Hawaii | Complete |   |   |
+| KP Mid-Atlantic | Complete |   |   |
+| KP Northern California | Complete |   |   |
 | KP Northwest | Complete | 6/30/2020 | Testing site--THANK YOU! |
-| KP Southern California | Incomplete |   |   |
-| KP Washington | Incomplete |   | Programming site. |
-| Marshfield | Incomplete |   |   |
-| Palo Alto Medical Foundation Research Institute | Incomplete |   |
+| KP Southern California | Complete |   |   |
+| KP Washington | Complete |   | Programming site. |
+| Marshfield | Complete |   |   |
+| Palo Alto Medical Foundation Research Institute | Complete |   |
 
