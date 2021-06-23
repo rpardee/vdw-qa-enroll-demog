@@ -72,7 +72,7 @@ quit ;
       drop yr mo last_day ;
     run ;
     %do i = 1 %to 10 ;
-      %put DIG IT: NO SUCH DATASET AS &INSET--CREATING A NULL OUTPUT DSET!!! ;
+      %put INFO: NO SUCH DATASET AS &INSET--CREATING A NULL OUTPUT DSET!!! ;
     %end ;
     %if %length(&outunenr) > 0 %then %do ;
       data &outunenr ;
