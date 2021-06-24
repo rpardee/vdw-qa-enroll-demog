@@ -105,7 +105,7 @@ Sites Requested
 | KP Northwest |  | | |
 | KP Southern California |  |  |  |
 | KP Washington |  |  | Programming site. |
-| Marshfield |  |  |  |
+| Marshfield |  |  |Getting started with git!|
 | Palo Alto Medical Foundation Research Institute |  |  |
 | St. Louis University / AHEAD Institute |  |  |
 
