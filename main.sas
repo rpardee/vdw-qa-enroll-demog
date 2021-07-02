@@ -106,6 +106,8 @@ libname _all_ clear ;
 ****************** end edit section ****************************** ;
 ****************** end edit section ****************************** ;
 
+* Hi Don!!! ;
+
 * Acceding to the CESR convention of spitting log out to sendable folder. ;
 proc printto log = "&root/share/&_siteabbr._vdw_enroll_demog_qa.log" new ;
 run ;
