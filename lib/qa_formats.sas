@@ -664,7 +664,7 @@ proc format cntlout = fmt ;
   ;
 
   value msk
-    1 - &lowest_count = "< &lowest_count"
+    .0001 - &lowest_count = "< &lowest_count"
     other = [comma12.0]
   ;
   value $use
