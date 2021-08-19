@@ -63,9 +63,10 @@ proc format cntlout = sites ;
     'KPGA' = 'KP Georgia'
     "KPNC" = "KP Northern California"
     "KPSC" = "KP Southern California"
-    "KPH"  = "KP Hawaii"
+    "KPHI" = "KP Hawaii"
     "FA"   = "Fallon Community HP"
     "KPMA" = "KP Mid-Atlantic"
+    "SLU"  = "St. Lous Univ/AHEAD"
   ;
   value thrs
     . = 'N/A'
@@ -970,6 +971,10 @@ ods tagsets.rtf file = "&out_folder.enroll_demog_qa.rtf"
     from dictionary.tables
     where libname = 'RAW' and memname like '%_TIER_ONE_RESULTS'
     ;
+
+    insert into submitting_sites (site) values ("St. Louis U/AHEAD") ;
+
+    alter table submitting_sites add primary key (site) ;
 
     create table col.submitting_sites as
     select * from submitting_sites
