@@ -56,7 +56,7 @@ proc format cntlout = sites ;
     'GHS'  = 'Geisinger'
     'GHC'  = 'KP Washington'
     'KPWA' = 'KP Washington'
-    'SH'   = 'Sutter Health (nee Palo Alto)'
+    'SH'   = 'Sutter Health'
     'EIRH' = 'Essentia'
     'KPCO' = 'KP Colorado'
     'KPNW' = 'KP Northwest'
@@ -66,7 +66,7 @@ proc format cntlout = sites ;
     "KPHI" = "KP Hawaii"
     "FA"   = "Fallon Community HP"
     "KPMA" = "KP Mid-Atlantic"
-    "SLU"  = "St. Lous Univ/AHEAD"
+    "SLU"  = "St. Louis Univ/AHEAD"
   ;
   value thrs
     . = 'N/A'
@@ -137,15 +137,25 @@ proc format cntlout = sites ;
     'Both'              = 'Both'
     'Insu', 'Insurance' = 'Insurance'
     'Non-'              = 'Non-member patient'
-    'M'                 = 'Male'
-    'F'                 = 'Female'
-    'O'                 = 'Other'
-    'Y'                 = 'Yes'
-    'N'                 = 'No'
-    'U'                 = 'Unknown'
+    'C'                 = 'Choose not to disclose'
     'E'                 = 'External'
+    'F'                 = 'Female'
+    'FF'                = 'Female'
+    'FM'                = 'Female to Male transgender'
+    'GQ'                = 'Genderqueer or non-conforming or non-binary or genderfluid'
+    'I'                 = 'Intersex'
     'K'                 = 'Yes, known to be incomplete'
+    'M'                 = 'Male'
+    'MF'                = 'Male to Female transgender'
+    'MM'                = 'Male'
+    'N'                 = 'No'
+    'ND'                = 'Choose not to disclose'
+    'O'                 = 'Other'
+    'OT'                = 'Other'
+    'U'                 = 'Unknown'
+    'UN'                = 'Unknown'
     'X'                 = 'Not implemented'
+    'Y'                 = 'Yes'
   ;
   value $vars
       'agegroup'            = 'Age of Enrollees'
@@ -182,39 +192,41 @@ proc format cntlout = sites ;
       'incomplete_tumor'    = 'Capture of tumor data known incomplete?'
   ;
   value $varcat
-      'agegroup'            = 'Demogs'
-      'sex_admin'           = 'Demogs'
-      'hispanic'            = 'Demogs'
-      'race'                = 'Demogs'
-      'needs_interpreter'   = 'Demogs'
-      'drugcov'             = 'Benefit'
-      'enrollment_basis'    = 'Meta'
-      'outside_utilization' = 'Meta'
-      'pcc_probably_valid'  = 'Meta'
-      'pcp_probably_valid'  = 'Meta'
-      'incomplete_emr'      = 'Meta'
-      'incomplete_inpt_enc' = 'Meta'
-      'incomplete_lab'      = 'Meta'
-      'incomplete_outpt_enc'= 'Meta'
-      'incomplete_outpt_rx' = 'Meta'
-      'incomplete_tumor'    = 'Meta'
-      'ins_commercial'      = 'Ins type'
-      'ins_highdeductible'  = 'Ins type'
-      'ins_medicaid'        = 'Ins type'
-      'ins_medicare'        = 'Ins type'
-      'ins_medicare_a'      = 'Ins type'
-      'ins_medicare_b'      = 'Ins type'
-      'ins_medicare_c'      = 'Ins type'
-      'ins_medicare_d'      = 'Ins type'
-      'ins_other'           = 'Ins type'
-      'ins_privatepay'      = 'Ins type'
-      'ins_selffunded'      = 'Ins type'
-      'ins_statesubsidized' = 'Ins type'
-      'plan_hmo'            = 'Plan type'
-      'plan_indemnity'      = 'Plan type'
-      'plan_pos'            = 'Plan type'
-      'plan_ppo'            = 'Plan type'
-  ;
+    'agegroup'             = 'Demogs'
+    'sex_admin'            = 'Demogs'
+    'sex_at_birth'         = 'Demogs'
+    'gender_identity'      = 'Demogs'
+    'hispanic'             = 'Demogs'
+    'race'                 = 'Demogs'
+    'needs_interpreter'    = 'Demogs'
+    'drugcov'              = 'Benefit'
+    'enrollment_basis'     = 'Meta'
+    'outside_utilization'  = 'Meta'
+    'pcc_probably_valid'   = 'Meta'
+    'pcp_probably_valid'   = 'Meta'
+    'incomplete_emr'       = 'Meta'
+    'incomplete_inpt_enc'  = 'Meta'
+    'incomplete_lab'       = 'Meta'
+    'incomplete_outpt_enc' = 'Meta'
+    'incomplete_outpt_rx'  = 'Meta'
+    'incomplete_tumor'     = 'Meta'
+    'ins_commercial'       = 'Ins type'
+    'ins_highdeductible'   = 'Ins type'
+    'ins_medicaid'         = 'Ins type'
+    'ins_medicare'         = 'Ins type'
+    'ins_medicare_a'       = 'Ins type'
+    'ins_medicare_b'       = 'Ins type'
+    'ins_medicare_c'       = 'Ins type'
+    'ins_medicare_d'       = 'Ins type'
+    'ins_other'            = 'Ins type'
+    'ins_privatepay'       = 'Ins type'
+    'ins_selffunded'       = 'Ins type'
+    'ins_statesubsidized'  = 'Ins type'
+    'plan_hmo'             = 'Plan type'
+    'plan_indemnity'       = 'Plan type'
+    'plan_pos'             = 'Plan type'
+    'plan_ppo'             = 'Plan type'
+    ;
 quit ;
 
 data line_colors ;
@@ -589,6 +601,8 @@ run ;
     end ;
     if var_name = 'enrollment_basis' and value =: 'Non-' then value = 'Non-member patient' ;
     if var_name = 'agegroup' then output agegroups ;
+    if var_name = 'sex_at_birth' and value = 'X' then value = 'Neither Male Nor Female' ;
+
     else output gnu ;
     label
       vcat     = "Category"
@@ -934,7 +948,7 @@ run ;
 %mend report_correlations ;
 
 
-%regen ;
+* %regen ;
 * endsas ;
 
 ods listing close ;
@@ -944,11 +958,13 @@ ods graphics / height = 6in width = 10in  maxlegendarea = 25 ;
 
 %let out_folder = \\groups\data\CTRHS\Crn\voc\enrollment\reports_presentations\output\ ;
 
-ods html path = "&out_folder" (URL=NONE)
+ods html5 path = "&out_folder" (URL=NONE)
          body   = "enroll_demog_qa.html"
          (title = "Enrollment + Demographics QA Output")
          style = magnify
          nogfootnote
+         device = svg
+         options(svg_mode = "embed")
           ;
 
 ods tagsets.rtf file = "&out_folder.enroll_demog_qa.rtf"
@@ -972,7 +988,7 @@ ods tagsets.rtf file = "&out_folder.enroll_demog_qa.rtf"
     where libname = 'RAW' and memname like '%_TIER_ONE_RESULTS'
     ;
 
-    insert into submitting_sites (site) values ("St. Louis U/AHEAD") ;
+    * insert into submitting_sites (site) values ("St. Louis U/AHEAD") ;
 
     alter table submitting_sites add primary key (site) ;
 
@@ -985,7 +1001,7 @@ ods tagsets.rtf file = "&out_folder.enroll_demog_qa.rtf"
   ods graphics / imagename = "submitting_sites" ;
   proc sgplot data = submitting_sites ;
     dot site / response = date_submitted ;
-    xaxis grid ; * min='04-mar-2017'd ;
+    xaxis grid min='01-jan-2021'd ;
   run ;
 
   proc sql number ;
@@ -1139,21 +1155,21 @@ ods tagsets.rtf file = "&out_folder.enroll_demog_qa.rtf"
 
   %plot_data_rates(inset = col.rx_rates   , incvar = incomplete_outpt_rx, tit = %str(Outpatient Pharmacy)        ) ;
   %plot_data_rates(inset = col.lab_rates  , incvar = incomplete_lab     , tit = %str(Lab Results)                ) ;
-  %plot_data_rates(inset = col.tumor_rates, incvar = incomplete_tumor   , tit = %str(Tumor)                      , extr = %str(max = 0.0015), rows = 3) ;
+  %plot_data_rates(inset = col.tumor_rates, incvar = incomplete_tumor   , tit = %str(Tumor)                      , extr = %str(max = 0.0015), rows = 4) ;
   %plot_data_rates(inset = col.emr_s_rates, incvar = incomplete_emr     , tit = %str(EMR Data (Social History))  ) ;
   %plot_data_rates(inset = col.emr_v_rates, incvar = incomplete_emr     , tit = %str(EMR Data (Vital Signs))  , extr = %str(max = 1.6)) ;
 
-  %plot_data_rates(inset = col.ute_out_rates_by_enctype (where = (extra = 'AV')) , incvar = incomplete_outpt_enc , tit = %str(Ambulatory Visits), extr = %str(max = 2)) ;
-  %plot_data_rates(inset = col.ute_in_rates_by_enctype  (where = (extra = 'IP')) , incvar = incomplete_inpt_enc  , tit = %str(Inpatient Stays), extr = %str(max = .020)) ;
+  %plot_data_rates(inset = col.ute_out_rates_by_enctype (where = (extra = 'AV')) , incvar = incomplete_outpt_enc , tit = %str(Ambulatory Visits), extr = %str(max = 2), rows = 5) ;
+  %plot_data_rates(inset = col.ute_in_rates_by_enctype  (where = (extra = 'IP')) , incvar = incomplete_inpt_enc  , tit = %str(Inpatient Stays), extr = %str(max = .020), rows = 5) ;
 
   %let unrows = 4 ;
 
-  %plot_unenrolled_rates(inset = col.enc_unenrolled, tit = %str(Encounters), rows  = &unrows, tot_crit = 1000) ;
-  %plot_unenrolled_rates(inset = col.lab_unenrolled, tit = %str(Lab Results), rows = 3, tot_crit = 1000) ;
+  %plot_unenrolled_rates(inset = col.enc_unenrolled, tit = %str(Encounters), rows  = 5, tot_crit = 1000) ;
+  %plot_unenrolled_rates(inset = col.lab_unenrolled, tit = %str(Lab Results), rows = &unrows, tot_crit = 1000) ;
   %plot_unenrolled_rates(inset = col.rx_unenrolled, tit = %str(Rx Fills), rows  = &unrows, tot_crit = 1000) ;
   %plot_unenrolled_rates(inset = col.shx_unenrolled, tit = %str(Social History), rows  = &unrows, tot_crit  = 2000) ;
   %plot_unenrolled_rates(inset = col.vsn_unenrolled (where = (site not in ('BSWH', 'HPHC'))), tit = %str(Vital Signs), rows  = &unrows, tot_crit = 1000) ;
-  %plot_unenrolled_rates(inset = col.tum_unenrolled (where = (site not in ('BSWH', 'HPHC', 'PAMF'))), tit = %str(Tumors), rows = 3, tot_crit = 5) ;
+  %plot_unenrolled_rates(inset = col.tum_unenrolled (where = (site not in ('BSWH', 'HPHC', 'PAMF'))), tit = %str(Tumors), rows = 4, tot_crit = 5) ;
 
   title2 "Noteworthy Variables" ;
   proc report nowd data=vars ;
