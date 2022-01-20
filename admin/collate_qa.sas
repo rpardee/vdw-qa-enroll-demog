@@ -227,6 +227,13 @@ proc format cntlout = sites ;
     'plan_pos'             = 'Plan type'
     'plan_ppo'             = 'Plan type'
     ;
+  * from https://communities.sas.com/t5/SAS-Programming/Million-Format/td-p/440121 ;
+  picture hicount (round)
+    1E03-<1000000='000K' (mult=.001  )
+    1E06-<1000000000='000.9M' (mult=.00001)
+    1E09-<1000000000000='000.9B' (mult=1E-08)
+    1E12-<1000000000000000='000.9T' (mult=1E-11)
+  ;
 quit ;
 
 data line_colors ;
@@ -660,6 +667,12 @@ run ;
     ;
 
     create table ax as select * from censored_ax ;
+
+    create table total_enrollments as
+    select year, sum(total_count) as total_count format = hicount.
+    from col.raw_enrollment_counts
+    group by year
+    ;
   quit ;
 
   proc sort data = ax ;
@@ -684,10 +697,20 @@ run ;
     series x = year y = total_count / group = site_name lineattrs = (thickness = &th pattern = solid) markers MARKERATTRS = (size = &sz) name = 'normalsites' ;
     series x = year y = high_count  / group = site_name lineattrs = (thickness = &th pattern = solid) markers MARKERATTRS = (size = &sz) y2axis ;
     xaxis grid display = (nolabel) ;
-    yaxis grid ;
+    yaxis grid display = (nolabel) ;
     * keylegend / location = inside position = topleft noborder ;
     * keylegend / noborder across = 4 ;
     keylegend 'normalsites' / noborder ;
+    where year between &start_year and &end_year ;
+  run ;
+
+  title2 "Enrollee Counts Over Time--all HCSRN Sites Aggregated" ;
+  proc sgplot data = total_enrollments nocycleattrs ;
+    series x = year y = total_count / lineattrs = (thickness = &th pattern = solid) markers MARKERATTRS = (size = &sz) name = 'normalsites' ;
+    xaxis grid display = (nolabel) ;
+    yaxis grid ;
+    * keylegend / location = inside position = topleft noborder ;
+    * keylegend / noborder across = 4 ;
     where year between &start_year and &end_year ;
   run ;
 
