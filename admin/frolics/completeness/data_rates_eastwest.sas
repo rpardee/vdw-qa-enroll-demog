@@ -149,16 +149,16 @@ quit ;
           , d.birth_date
           , extract(year from i.first_day) - EXTRACT(year from d.birth_date) as rough_age
       from o578092.inflate_months as i INNER JOIN
-           sb_ghri.enroll as e
+           kpwhri_rdw.enroll as e
       on   i.first_day between e.enr_start and e.enr_end INNER JOIN
-           sb_ghri.demog as d
+           kpwhri_rdw.demog as d
       on   e.mrn = d.mrn
       )
 
 
       select first_day, IsWest, division, COUNT(distinct e.mrn) as n_enrollees, SUM(case when l.mrn is null then 0 else 1 end) as n_lab_results
       from enroll as e LEFT JOIN
-           sb_ghri.lab_results as l
+           kpwhri_rdw.lab_results as l
       on   e.mrn = l.mrn
            AND l.lab_dt between e.first_day and e.last_day
       where rough_age >= 65

@@ -42,6 +42,9 @@ demog   race2                   2   .
 demog   race3                   2   .
 demog   race4                   2   .
 demog   race5                   2   .
+demog   sexual_orientation1     2   .
+demog   sexual_orientation2     2   .
+demog   sexual_orientation3     2   .
 enroll  mrn                     2   .
 enroll  enr_end                 1   4
 enroll  enr_start               1   4
@@ -662,7 +665,19 @@ proc format cntlout = fmt ;
     'UN'  = 'Unknown'
     other = 'bad'
   ;
-
+  value $so
+    'B' = 'Bisexual'
+    'T' = 'Heterosexual'
+    'M' = 'Homosexual'
+    'A' = 'Asexual'
+    'P' = 'Pansexual'
+    'Q' = 'Queer'
+    'O' = 'Other'
+    'D' = 'Does not know'
+    'N' = 'Choose not to disclose'
+    'U' = 'Not asked/no information'
+    other  = 'bad'
+  ;
   value msk
     .0001 - &lowest_count = "< &lowest_count"
     other = [comma12.0]

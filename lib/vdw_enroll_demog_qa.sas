@@ -709,6 +709,14 @@ quit ;
       output to_stay.bad_demog ;
     end ;
 
+    array so sexual_orientation1 - sexual_orientation3 ;
+    do i = 1 to dim(so) ;
+      if put(so{i}, $so.) = 'bad' then do ;
+        problem = 'bad value in ' || lowcase(vname(so{i})) ;
+        output to_stay.bad_demog ;
+      end ;
+    end ;
+
     if alldone then do ;
       mrns.output(dataset: 'demog_mrns') ;
     end ;
