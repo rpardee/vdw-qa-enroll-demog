@@ -876,6 +876,10 @@ quit ;
     format first_day last_day mmddyy10. ;
   run ;
 
+  data &tmplib.all_years ;
+    set all_years ;
+  run ;
+
   proc sql ;
     /*
       Dig this funky join--its kind of a cartesian product, limited to
@@ -921,7 +925,7 @@ quit ;
           /* This depends on there being no overlapping periods to work! */
           , sum((min(enr_end, last_day) - max(enr_start, first_day) + 1) / num_days) as enrolled_proportion
     from  &_vdw_enroll as e INNER JOIN
-          all_years as y
+          &tmplib.all_years as y
     on    e.enr_start le y.last_day AND
           e.enr_end   ge y.first_day
     group by mrn, year
@@ -936,6 +940,7 @@ quit ;
         , sex_admin
         , gender_identity
         , sex_at_birth
+        , sexual_orientation1
         , put(race1, $race.)              as race length = 10
         , put(hispanic            , $cd.) as hispanic
         , put(needs_interpreter   , $cd.) as needs_interpreter
@@ -979,6 +984,7 @@ quit ;
             , sex_admin
             , gender_identity
             , sex_at_birth
+            , sexual_orientation1
             , race
             , hispanic
             , needs_interpreter
@@ -1029,6 +1035,7 @@ quit ;
         year                  = "Year of Enrollment"
         agegroup              = "Age Group"
         sex_admin             = "Sex of Enrollee"
+        sexual_orientation1   = "Sexual Orientation"
         gender_identity       = "Gender Identity"
         sex_at_birth          = "Sex Assigned At Birth"
         race                  = "Race of Enrollee"
@@ -1112,6 +1119,7 @@ quit ;
       sex_admin
       gender_identity
       sex_at_birth
+      sexual_orientation1
       race
       hispanic
       needs_interpreter
@@ -1180,15 +1188,13 @@ quit ;
   run ;
 
   %local vlist ;
-  %let vlist =
-      hispanic
-      needs_interpreter
-      race1
-      race2
-      race3
-      race4
-      race5
+  proc sql noprint ;
+    select name
+    into :vlist separated by ' '
+    from expected_vars
+    where dset = 'demog' and name not in ('mrn', 'sex_admin', 'birth_date')
     ;
+  quit ;
 
   %local this_var ;
   %local i ;
@@ -1338,10 +1344,11 @@ quit ;
 
 %mend do_all_rates ;
 
+%make_denoms ;
+
 %check_vars ;
 %demog_tier_one ;
 %lang_tier_one; *pjh19401;
-%make_denoms ;
 %enroll_tier_one ;
 
 data to_stay.demog_checks ;
@@ -1375,6 +1382,7 @@ ods rtf file = "%sysfunc(pathname(to_stay))/&_siteabbr._vdw_enroll_demog_qa.rtf"
         ;
 
   title1 "&_SiteName.: QA for Enroll/Demographics" ;
+
   title2 "Tier One Checks" ;
   proc print label data = to_go.&_siteabbr._tier_one_results ;
     id description ;
@@ -1384,10 +1392,9 @@ ods rtf file = "%sysfunc(pathname(to_stay))/&_siteabbr._vdw_enroll_demog_qa.rtf"
 
   title2 "Tier 1.5 Checks" ;
 
-/*
-*/
   %enroll_tier_one_point_five(outset = to_go.&_siteabbr._enroll_freqs) ;
   %demog_tier_one_point_five(outset = to_go.&_siteabbr._demog_freqs) ;
+
   %draw_heatmap ;
 
   title2 "Completeness of VDW Data for &_SiteName" ;
@@ -1439,6 +1446,7 @@ ods rtf file = "%sysfunc(pathname(to_stay))/&_siteabbr._vdw_enroll_demog_qa.rtf"
   %graph_unenrolled(inset = to_stay.tum_unenrolled, ylab = %str(Tumors)) ;
   %graph_unenrolled(inset = to_stay.vsn_unenrolled, ylab = %str(Vital Signs)) ;
   %graph_unenrolled(inset = to_stay.shx_unenrolled, ylab = %str(Social History)) ;
+
 
 run ;
 
