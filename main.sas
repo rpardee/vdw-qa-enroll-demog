@@ -50,9 +50,10 @@ libname _all_ clear ;
 
 * Please set start_year to your earliest date of enrollment data. ;
 %let start_year = 1988 ;
-* Please set end_year to the last complete year of data. ;
-%let end_year = 2019 ;
+
+* Please override this param w/a literal value if your last complete year of enrollment data is not ::last year:: ;
 %let end_year = %sysfunc(intnx(year, "&sysdate9"d, -1, end), year4.) ;
+%*let end_year = 2021 ;
 
 * Optional--set to a number of records or the string false to limit the number of records offending ;
 * quality checks that get written to the DO_NOT_SEND folder. ;
@@ -88,9 +89,7 @@ libname _all_ clear ;
   tries this out.
 */
 
-* libname mylib teradata
-  user              = "&nuid@LDAP"
-  password          = "&cspassword"
+libname mylib teradata
   server            = "&td_prod"
   schema            = "&nuid"
   multi_datasrc_opt = in_clause
@@ -99,27 +98,28 @@ libname _all_ clear ;
   fastload          = yes
 ;
 
-%let tmplib = work ;
 * %let tmplib = mylib ;
+%let tmplib = work ;
 
 ****************** end edit section ****************************** ;
 ****************** end edit section ****************************** ;
 ****************** end edit section ****************************** ;
-
-* Hi Don!!! ;
-
+/*
 * Acceding to the CESR convention of spitting log out to sendable folder. ;
 proc printto log = "&root/share/&_siteabbr._vdw_enroll_demog_qa.log" new ;
 run ;
+*/
 
 %include vdw_macs ;
 
+* These guys define macros, formats and reference dsets. ;
 %include "&root./lib/stack_datasets.sas" ;
 %include "&root./lib/qa_formats.sas" ;
 %include "&root./lib/vdw_lang_qa.sas" ;
 %include "&root./lib/simple_data_rates_generic.sas" ;
 %include "&root./lib/graph_data_rates.sas" ;
 
+* And this is the thing that actually does work. ;
 %include "&root./lib/vdw_enroll_demog_qa.sas" ;
 
 
