@@ -82,14 +82,14 @@ libname _all_ clear ;
   ran in about 14 hours into one that runs in 15 *minutes*.
 
   TO DO SO, create a libname pointing at a db on the same server as VDW, to
-  which you have CREATE TABLE permissions.  You can see what I used at GH
+  which you have CREATE TABLE permissions.  You can see what I used at KPWA
   commented-out, below.  I *believe* the 'connection = global' bit is necessary
   to get the join pushed to the db, and that it works for rdbms' other than
   Teradata, but am not positive.  I'd love to hear your experience if anybody
   tries this out.
 */
 
-libname mylib teradata
+* libname mylib teradata
   server            = "&td_prod"
   schema            = "&nuid"
   multi_datasrc_opt = in_clause
