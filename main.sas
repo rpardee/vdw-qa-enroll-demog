@@ -104,22 +104,21 @@ libname mylib teradata
 ****************** end edit section ****************************** ;
 ****************** end edit section ****************************** ;
 ****************** end edit section ****************************** ;
-/*
+
 * Acceding to the CESR convention of spitting log out to sendable folder. ;
 proc printto log = "&root/share/&_siteabbr._vdw_enroll_demog_qa.log" new ;
 run ;
-*/
 
 %include vdw_macs ;
 
-* These guys define macros, formats and reference dsets. ;
+* These guys (mostly) define macros, formats and reference dsets. ;
 %include "&root./lib/stack_datasets.sas" ;
 %include "&root./lib/qa_formats.sas" ;
 %include "&root./lib/vdw_lang_qa.sas" ;
-%include "&root./lib/simple_data_rates_generic.sas" ;
 %include "&root./lib/graph_data_rates.sas" ;
 
-* And this is the thing that actually does work. ;
+* And these things actually do the work. ;
+%include "&root./lib/simple_data_rates_generic.sas" ;
 %include "&root./lib/vdw_enroll_demog_qa.sas" ;
 
 
