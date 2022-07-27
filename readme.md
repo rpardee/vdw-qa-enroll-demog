@@ -13,26 +13,30 @@ Roy Pardee (@kaiser-roy) & Paul Hitz
 
 ### For git users
 
-If you have already cloned the repository:
+#### If you have already cloned the repository:
 
 1. Grab down any updates since the last time you ran by runing ```git pull origin master``` at a command line (or use your preferred git client (e.g., sourcetree, gitkraken) to perform that same operation).
 2. (optional) clear any files from previous runs out of the /local_only and /share subdirectories.
 
-If you have not yet cloned the repository:
+#### If you have not yet cloned the repository:
 
-1. Run ```git clone https://github.com/kpwhri/hcsrn-qa-enroll-demog.git``` someplace convenient (i.e., in some directory you can put both the QA code and the data it will write to subdirectories) or use your preferred git client (e.g., sourcetree, gitkraken) to perform that same operation.
-2. Make the edits indicated at the beginning of main.sas.
+There are 2 authoritative github-based clones of this repo:
 
-Note that the github repository is currently set to Private--get in touch with [Roy](mailto:roy.e.pardee@kp.org) to be granted permissions to it.
+|URL | For | How to request access|
+|----|-----|----------------------|
+|https://github.kp.org/O578092/voc_enroll | Kaiser employees | Everyone with access to KP's github enterprise instance should be able to see/clone this repo.|
+|https://github.com/kpwhri/hcsrn-qa-enroll-demog | Anybody with a github.com account| E-mail [Roy](mailto:roy.e.pardee@kp.org) with your github username and he will add you to the <abbr title = "Kaiser Permanente Washington Health Research Institute">KPWHRI<abbr> 'organization', after which point you will be able to see/clone this repo.|
+
+Run the command ```git clone ::repo-you-have-chosen:::``` someplace convenient (i.e., in some directory you can put both the QA code and the data it will write to subdirectories) or use your preferred git client (e.g., sourcetree, gitkraken) to perform that same operation.
 
 ### For <abbr title = "<cough>losers</cough>">Others<abbr>
 
 1. download the repository as a zip file from [the HCSRN portal](https://www.hcsrn.org/share/page/site/VDW/document-details?nodeRef=workspace://SpacesStore/13dc5a14-4caa-4058-ade6-305c40238afa)
 2. Unzip the contents of that file someplace convenient (i.e., in some directory you can put both the QA code and the data it will write to subdirectories).
-3. Make the edits indicated at the beginning of main.sas.
 
 ### For Everyone
 
+1. Make the edits indicated at the beginning of main.sas.
 1. Run main.sas
 2. Send the requested contents (listed below) to Roy via [KPWHRI Secure File Transfer app](http://projects.kpwashingtonresearch.org/sft/). Please use the HCSRN_VIG folder
 
@@ -42,7 +46,7 @@ Note that the github repository is currently set to Private--get in touch with [
 
 **Please feel free to run this code & submit updated results at any time. It is not difficult to regenerate [the collated QA report](https://www.hcsrn.org/share/page/site/VDW/document-details?nodeRef=workspace://SpacesStore/4be65d3a-c4c0-4952-92d1-d1ba6264e1b4) and I am happy to capture any fixes you make as quickly as you make them.**
 
-Please don't hesitate to get in touch with @kaiser-roy if you have any questions about this.
+Please don't hesitate to get in touch with [Roy](mailto:roy.e.pardee@kp.org) if you have any questions about this.
 
 # Data Required
 This program requires the following VDW files:
@@ -105,7 +109,7 @@ Sites Requested
 | KP Northwest |  | | |
 | KP Southern California |  |  |  |
 | KP Washington |  |  | Programming site. |
-| Marshfield |  |  |Getting started with git!|
+| Marshfield |  |  | |
 | Palo Alto Medical Foundation Research Institute |  |  |
 | St. Louis University / AHEAD Institute |  |  |
 
