@@ -1376,11 +1376,6 @@ ods html5 path   = "%sysfunc(pathname(to_go))" (URL=NONE)
          device = svg
          ;
 
-ods rtf file = "%sysfunc(pathname(to_stay))/&_siteabbr._vdw_enroll_demog_qa.rtf"
-        device = sasemf
-        style = magnify
-        ;
-
   title1 "&_SiteName.: QA for Enroll/Demographics" ;
 
   title2 "Tier One Checks" ;
