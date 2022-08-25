@@ -329,6 +329,42 @@ run ;
 
 %mend reshuffle_unenrl_rates ;
 
+%macro unreshuffle_unenrl_rates(inset = unenrl_rates, lib = s) ;
+  proc sql ;
+    select distinct upcase(site) as site
+        , dset
+        , cats("&lib..", lowcase(site), '_', lowcase(dset), '_unenrolled') as destination_dset
+    into :s1-:s999, :ds1-:ds999, :dd1-:dd999
+    from &lib..&inset
+    order by site, dset
+    ;
+    %let num_rows = &SQLOBS ;
+
+    %do i = 1 %to &num_rows ;
+      drop table &&dd&i ;
+    %end ;
+  ;
+  quit ;
+%mend unreshuffle_unenrl_rates ;
+
+%macro unreshuffle_capture_rates(inset = capture_rates, lib = s) ;
+  proc sql noprint ;
+    select distinct upcase(site) as site
+        , source_dset
+        , cats("&lib..", lowcase(site), '_', substr(source_dset, 9)) as destination_dset
+        , capture_var
+    into :s1-:s999, :sd1-:sd999, :dd1-:dd999, :cv1-:cv999
+    from &lib..&inset
+    order by site, source_dset
+    ;
+    %let num_rows = &SQLOBS ;
+
+    %do i = 1 %to &num_rows ;
+      drop table &&dd&i ;
+    %end ;
+  quit ;
+
+%mend unreshuffle_capture_rates ;
 
 %macro do_results() ;
 
@@ -350,6 +386,8 @@ run ;
   %stack_datasets(inlib = raw, nom = ute_in_rates_by_enctype, outlib = col) ;
   %stack_datasets(inlib = raw, nom = ute_out_rates_by_enctype, outlib = col) ;
 
+  %unreshuffle_capture_rates(inset = capture_rates, lib = raw) ;
+
   %reshuffle_unenrl_rates(inset = unenrl_rates, lib = raw) ;
 
   %stack_and_calc(which = rx) ;
@@ -358,6 +396,8 @@ run ;
   %stack_and_calc(which = shx) ;
   %stack_and_calc(which = tum) ;
   %stack_and_calc(which = vsn) ;
+
+  %unreshuffle_unenrl_rates(inset = unenrl_rates, lib = raw) ;
 
   proc sort data = tier_one_results(drop = detail_dset) ;
     by qa_macro description site ;
@@ -456,7 +496,6 @@ run ;
   quit ;
 %mend do_vars ;
 
-
 %macro do_freqs(nom, byvar = year) ;
   /*
     variables can take any of several values.
@@ -525,7 +564,6 @@ run ;
     ;
 
   quit ;
-
 %mend do_freqs ;
 
 %macro misc_wrangling() ;
@@ -570,7 +608,6 @@ run ;
     set raw.pamf_ute_out_rates_by_enctype(drop = extra) ;
     extra = '-1' ;
   run ;
-
 %mend pre_fix ;
 
 %macro regen() ;
@@ -990,8 +1027,8 @@ run ;
 %mend report_correlations ;
 
 
-* %regen ;
-* endsas ;
+%regen ;
+endsas ;
 
 ods listing close ;
 
@@ -1043,7 +1080,7 @@ ods tagsets.rtf file = "&out_folder.enroll_demog_qa.rtf"
   ods graphics / imagename = "submitting_sites" ;
   proc sgplot data = submitting_sites ;
     dot site / response = date_submitted ;
-    xaxis grid min='01-jan-2021'd ;
+    xaxis grid ; * min='01-jan-2021'd ;
   run ;
 
   proc sql number ;
