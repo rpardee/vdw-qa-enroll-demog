@@ -190,11 +190,13 @@ proc format cntlout = sites ;
       'incomplete_outpt_enc'= 'Capture of outpatient encounters known incomplete?'
       'incomplete_outpt_rx' = 'Capture of outpatient pharmacy known incomplete?'
       'incomplete_tumor'    = 'Capture of tumor data known incomplete?'
+      'sexual_orientation1' = 'Sexual Orientation (unknowns elided)'
   ;
   value $varcat
     'agegroup'             = 'Demogs'
     'sex_admin'            = 'Demogs'
     'sex_at_birth'         = 'Demogs'
+    'sexual_orientation1'  = 'Demogs'
     'gender_identity'      = 'Demogs'
     'hispanic'             = 'Demogs'
     'race'                 = 'Demogs'
@@ -233,6 +235,19 @@ proc format cntlout = sites ;
     1E06-<1000000000='000.9M' (mult=.00001)
     1E09-<1000000000000='000.9B' (mult=1E-08)
     1E12-<1000000000000000='000.9T' (mult=1E-11)
+  ;
+  value $so
+    'B' = 'B: Bisexual'
+    'T' = 'T: Heterosexual'
+    'M' = 'M: Homosexual'
+    'A' = 'A: Asexual'
+    'P' = 'P: Pansexual'
+    'Q' = 'Q: Queer'
+    'O' = 'O: Other'
+    'D' = 'D: Does not know'
+    'N' = 'N: Choose not to disclose'
+    'U' = 'U: Not asked/no information'
+    other  = 'bad'
   ;
 quit ;
 
@@ -606,11 +621,15 @@ run ;
       if value = 'Y' then value = 'Probably' ;
       else if value = 'N' then value = 'Probably Not' ;
     end ;
+    if var_name = 'sexual_orientation1' then do ;
+      if value = 'U' then delete ;
+      else value = put(value, $so.) ;
+    end ;
     if var_name = 'enrollment_basis' and value =: 'Non-' then value = 'Non-member patient' ;
-    if var_name = 'agegroup' then output agegroups ;
     if var_name = 'sex_at_birth' and value = 'X' then value = 'Neither Male Nor Female' ;
-
+    if var_name = 'agegroup' then output agegroups ;
     else output gnu ;
+
     label
       vcat     = "Category"
       year     = "Year"
@@ -770,7 +789,7 @@ run ;
     scatter x = person_years y = duration_p50 / group = site
                                                 yerrorlower = duration_p25
                                                 yerrorupper = duration_p75
-                                            errorbarattrs = (thickness = .7mm)
+                                                errorbarattrs = (thickness = .7mm)
                                                 datalabel = site
                                                 datalabelattrs = (size = 4mm)
                                                 markerattrs = (symbol = circlefilled size = 3mm)
