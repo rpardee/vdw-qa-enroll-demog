@@ -159,7 +159,7 @@ proc format cntlout = sites ;
   ;
   value $vars
       'agegroup'            = 'Age of Enrollees'
-      'drugcov'             = 'Has at least "some" drug coverage?'
+      'drugcov'             = 'Has at least `some` drug coverage?'
       'enrollment_basis'    = 'Basis for including this person/period in Enrollment'
       'sex_admin'           = 'Administrative Sex'
       'hispanic'            = 'Is Hispanic?'
@@ -171,7 +171,7 @@ proc format cntlout = sites ;
       'ins_medicare_b'      = 'Has medicare part B coverage?'
       'ins_medicare_c'      = 'Has medicare part C coverage?'
       'ins_medicare_d'      = 'Has medicare part D coverage?'
-      'ins_other'           = 'Has "other" type insurance coverage?'
+      'ins_other'           = 'Has `other` type insurance coverage?'
       'ins_privatepay'      = 'Has Private Pay coverage?'
       'ins_selffunded'      = 'Has Self-Funded coverage?'
       'ins_statesubsidized' = 'Has State-subsidized coverage?'
@@ -191,6 +191,8 @@ proc format cntlout = sites ;
       'incomplete_outpt_rx' = 'Capture of outpatient pharmacy known incomplete?'
       'incomplete_tumor'    = 'Capture of tumor data known incomplete?'
       'sexual_orientation1' = 'Sexual Orientation (unknowns elided)'
+      'gender_identity'     = 'Gender Identity (unknowns elided)'
+      'sex_at_birth'        = 'Sex Assigned At Birth (unknowns elided)'
   ;
   value $varcat
     'agegroup'             = 'Demogs'
@@ -662,6 +664,14 @@ run ;
       if value = 'U' then delete ;
       else value = put(value, $so.) ;
     end ;
+    if var_name = 'gender_identity' then do ;
+      if value = 'UN' then delete ;
+      else value = put(value, $gi.) ;
+    end ;
+    if var_name = 'sex_at_birth' then do ;
+      if value = 'U' then delete ;
+      else value = put(value, $sexaab.) ;
+    end ;
     if var_name = 'enrollment_basis' and value =: 'Non-' then value = 'Non-member patient' ;
     if var_name = 'sex_at_birth' and value = 'X' then value = 'Neither Male Nor Female' ;
     if var_name = 'agegroup' then output agegroups ;
@@ -1027,8 +1037,8 @@ run ;
 %mend report_correlations ;
 
 
-%regen ;
-endsas ;
+* %regen ;
+* endsas ;
 
 ods listing close ;
 
@@ -1045,8 +1055,9 @@ ods html5 path = "&out_folder" (URL=NONE)
          device = svg
          options(svg_mode = "embed")
           ;
+ods word file = "&out_folder.enroll_demog_qa.docx" ;
 
-ods tagsets.rtf file = "&out_folder.enroll_demog_qa.rtf"
+* ods tagsets.rtf file = "&out_folder.enroll_demog_qa.rtf"
         device = sasemf
         nogfootnote
         style = daisy
@@ -1085,13 +1096,15 @@ ods tagsets.rtf file = "&out_folder.enroll_demog_qa.rtf"
 
   proc sql number ;
     * The full table is way too wide for the rtf output--cut it out of there. ;
-    ods tagsets.rtf exclude all ;
+    * ods tagsets.rtf exclude all ;
+    ods word exclude all ;
 
     title2 "Tier One (objective) checks--overall" ;
     select * from col.tier_one_results (drop = qa_macro) ;
 
     reset nonumber ;
-    ods tagsets.rtf ;
+    * ods tagsets.rtf ;
+    ods word ;
 
     create table nn as
     select *
