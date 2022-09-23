@@ -1057,17 +1057,8 @@ ods html5 path = "&out_folder" (URL=NONE)
           ;
 ods word file = "&out_folder.enroll_demog_qa.docx" ;
 
-* ods tagsets.rtf file = "&out_folder.enroll_demog_qa.rtf"
-        device = sasemf
-        nogfootnote
-        style = daisy
-        ;
-
-  * footnote1 "* SDM Advises their E/D data is still under active development." ;
-
   title1 "Enrollment/Demographics QA Report" ;
 
-* footnote2 height = 10pt "^R/HTML'See <a href="" target=""_blank"">the VDW Issue Tracker</a> for current status on all issues." ;
 %macro overview ;
   proc sql number ;
     * describe table dictionary.tables ;
@@ -1096,16 +1087,15 @@ ods word file = "&out_folder.enroll_demog_qa.docx" ;
 
   proc sql number ;
     * The full table is way too wide for the rtf output--cut it out of there. ;
-    * ods tagsets.rtf exclude all ;
     ods word exclude all ;
 
     title2 "Tier One (objective) checks--overall" ;
     select * from col.tier_one_results (drop = qa_macro) ;
 
     reset nonumber ;
-    * ods tagsets.rtf ;
     ods word ;
 
+    * We decided in I want to say 2020 not to fuss over fails w/percents that round to zero. ;
     create table nn as
     select *
     from col.norm_tier_one_results
@@ -1113,7 +1103,7 @@ ods word file = "&out_folder.enroll_demog_qa.docx" ;
     ;
 
     /* Fetch cached status (if previously known) from the mem access db */
-    create table nonnegligible_nonpasses as
+    create table significant_nonpasses as
     select n.*
           , case
               when n.result = 'fail' and r.issue_status is null then 'NOT YET LOGGED'
@@ -1126,6 +1116,8 @@ ods word file = "&out_folder.enroll_demog_qa.docx" ;
     ;
 
     title2 "Tier One--checks that tripped any failures or warnings" ;
+    footnote1 "See the VDW Issue Tracker for current status on all issues" ;
+    footnote2 "https://www.hcsrn.org/share/page/site/VDW/data-lists?list=f3c5ef15-334b-47f4-b6d3-aee37bedc057" ;
     select description
           , warn_lim / 100 format = thrs. label = "Warn Threshold"
           , fail_lim / 100 format = thrs. label = "Fail Threshold"
@@ -1133,27 +1125,14 @@ ods word file = "&out_folder.enroll_demog_qa.docx" ;
           , sum(case when result in ('warn', 'warning') then 1 else 0 end) as num_warns label = "Warnings"
           , sum(case when result = 'pass' then 1 else 0 end) as num_passes label = "Passes"
           , sum(case when result = 'pass' then 1 else 0 end) / count(*) as pct_passes label = "Percent of Sites Passing" format = percent6.0
-    from col.norm_tier_one_results
-    where description in (select description from nonnegligible_nonpasses)
+    from significant_nonpasses
     group by description, warn_lim, fail_lim
     order by 7
     ;
   quit ;
-  ods tagsets.rtf text = "See the VDW Issue Tracker for current status on all issues" ;
-  ods tagsets.rtf text = "https://www.hcsrn.org/share/page/site/VDW/data-lists?list=f3c5ef15-334b-47f4-b6d3-aee37bedc057" ;
 
   title2 "Tier One--Non-Passes By Implementing Site" ;
-  * proc report data = col.norm_tier_one_results ;
-  *   column sitename table, result ;
-  *   define sitename / group 'Site' ;
-  *   define table  / '' across ; *format = $tb. ;
-  *   define result / '' across order = freq descending ; * format = $res. ;
-  *   where table ne 'All' ;
-  * quit ;
-
-  * ods tagsets.rtf exclude all ;
-
-  proc report data = nonnegligible_nonpasses ;
+  proc report data = significant_nonpasses ;
     column sitename table description result num_bad percent_bad issue_status ;
     define sitename / group 'Site' ;
     define table / 'Table' ;
@@ -1168,11 +1147,7 @@ ods word file = "&out_folder.enroll_demog_qa.docx" ;
     endcomp ;
     where result ne 'pass' ;
   quit ;
-  ods tagsets.rtf text = "See the VDW Issue Tracker for current status on all issues" ;
-  ods tagsets.rtf text = "https://www.hcsrn.org/share/page/site/VDW/data-lists?list=f3c5ef15-334b-47f4-b6d3-aee37bedc057" ;
-
-  ods tagsets.rtf ;
-
+  footnote "Program file: &program_file " ;
 %mend overview ;
 
 %macro plot_data_rates(inset = col.rx_rates, incvar = incomplete_outpt_rx, tit = %str(Outpatient Pharmacy), extr = , rows = 4) ;
