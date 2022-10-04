@@ -1363,35 +1363,7 @@ data to_go.&_siteabbr._tier_one_results ;
   set results ;
 run ;
 
-%do_all_rates ;
-
-options orientation = landscape ;
-ods graphics / height = 6in width = 10in ;
-
-ods html5 path   = "%sysfunc(pathname(to_go))" (URL=NONE)
-         body   = "&_siteabbr._vdw_enroll_demog_qa.html"
-         (title = "&_SiteName.: QA for Enroll/Demographics - Tier 1 & 1.5")
-         style  = magnify
-         nogfootnote
-         device = svg
-         ;
-
-  title1 "&_SiteName.: QA for Enroll/Demographics" ;
-
-  title2 "Tier One Checks" ;
-  proc print label data = to_go.&_siteabbr._tier_one_results ;
-    id description ;
-    var qa_macro detail_dset num_bad percent_bad ;
-    var result / style = {background=$result.} ;
-  run ;
-
-  title2 "Tier 1.5 Checks" ;
-
-  %enroll_tier_one_point_five(outset = to_go.&_siteabbr._enroll_freqs) ;
-  %demog_tier_one_point_five(outset = to_go.&_siteabbr._demog_freqs) ;
-
-  %draw_heatmap ;
-
+%macro graph_the_rates ;
   title2 "Completeness of VDW Data for &_SiteName" ;
   %graph_capture(rateset = to_stay.rx_rates
                 , incvar = incomplete_outpt_rx
@@ -1442,53 +1414,90 @@ ods html5 path   = "%sysfunc(pathname(to_go))" (URL=NONE)
   %graph_unenrolled(inset = to_stay.vsn_unenrolled, ylab = %str(Vital Signs)) ;
   %graph_unenrolled(inset = to_stay.shx_unenrolled, ylab = %str(Social History)) ;
 
+%mend graph_the_rates ;
+
+
+%do_all_rates ;
+
+options orientation = landscape ;
+ods graphics / height = 6in width = 10in ;
+
+ods html5 path   = "%sysfunc(pathname(to_go))" (URL=NONE)
+         body   = "&_siteabbr._vdw_enroll_demog_qa.html"
+         (title = "&_SiteName.: QA for Enroll/Demographics - Tier 1 & 1.5")
+         style  = magnify
+         nogfootnote
+         device = svg
+         ;
+
+  title1 "&_SiteName.: QA for Enroll/Demographics" ;
+
+  title2 "Tier One Checks" ;
+  proc print label data = to_go.&_siteabbr._tier_one_results ;
+    id description ;
+    var qa_macro detail_dset num_bad percent_bad ;
+    var result / style = {background=$result.} ;
+  run ;
+
+  title2 "Tier 1.5 Checks" ;
+
+  %enroll_tier_one_point_five(outset = to_go.&_siteabbr._enroll_freqs) ;
+  %demog_tier_one_point_five(outset = to_go.&_siteabbr._demog_freqs) ;
+
+  %draw_heatmap ;
+
+  %graph_the_rates ;
 
 run ;
 
 ods _all_ close ;
 
-* Merge similarly-structured datasets to minimize the work users have to do vetting the data for safety-to-send. ;
-%removedset(dset = to_go.&_siteabbr._unenrl_rates) ;
-%stack_datasets(inlib         = to_stay
-              , nom           = unenrolled
-              , outlib        = to_go
-              , srcvar        = dset
-              , outnom        = &_siteabbr._unenrl_rates
-              , delete_insets = yes) ;
+%macro merge_samesies ;
+  * Merge similarly-structured datasets to minimize the work users have to do vetting the data for safety-to-send. ;
+  %removedset(dset = to_go.&_siteabbr._unenrl_rates) ;
+  %stack_datasets(inlib         = to_stay
+                , nom           = unenrolled
+                , outlib        = to_go
+                , srcvar        = dset
+                , outnom        = &_siteabbr._unenrl_rates
+                , delete_insets = yes) ;
 
-data to_go.&_siteabbr._capture_rates ;
-  length capture_var $ 20 ;
-  set
-    to_stay.lab_rates                 (rename = (incomplete_lab       = capture))
-    to_stay.tumor_rates               (rename = (incomplete_tumor     = capture))
-    to_stay.rx_rates                  (rename = (incomplete_outpt_rx  = capture))
-    to_stay.emr_s_rates               (rename = (incomplete_emr       = capture))
-    to_stay.emr_v_rates               (rename = (incomplete_emr       = capture))
-    to_stay.ute_out_rates_by_enctype  (rename = (incomplete_outpt_enc = capture))
-    to_stay.ute_in_rates_by_enctype   (rename = (incomplete_inpt_enc  = capture))
-    indsname = inset
-  ;
-  source_dset = lowcase(inset) ;
-  select(source_dset) ;
-    when('to_stay.lab_rates')                 capture_var = 'incomplete_lab'      ;
-    when('to_stay.tumor_rates')               capture_var = 'incomplete_tumor'    ;
-    when('to_stay.rx_rates')                  capture_var = 'incomplete_outpt_rx' ;
-    when('to_stay.emr_s_rates')               capture_var = 'incomplete_emr'      ;
-    when('to_stay.emr_v_rates')               capture_var = 'incomplete_emr'      ;
-    when('to_stay.ute_out_rates_by_enctype')  capture_var = 'incomplete_outpt_enc';
-    when('to_stay.ute_in_rates_by_enctype')   capture_var = 'incomplete_inpt_enc' ;
-    otherwise capture_var = 'zah?' ;
-  end ;
-  if n_unenrolled le &lowest_count then n_unenrolled = .a ;
-  if n_total      le &lowest_count then n_total = .a ;
-run ;
+  data to_go.&_siteabbr._capture_rates ;
+    length capture_var $ 20 ;
+    set
+      to_stay.lab_rates                 (rename = (incomplete_lab       = capture))
+      to_stay.tumor_rates               (rename = (incomplete_tumor     = capture))
+      to_stay.rx_rates                  (rename = (incomplete_outpt_rx  = capture))
+      to_stay.emr_s_rates               (rename = (incomplete_emr       = capture))
+      to_stay.emr_v_rates               (rename = (incomplete_emr       = capture))
+      to_stay.ute_out_rates_by_enctype  (rename = (incomplete_outpt_enc = capture))
+      to_stay.ute_in_rates_by_enctype   (rename = (incomplete_inpt_enc  = capture))
+      indsname = inset
+    ;
+    source_dset = lowcase(inset) ;
+    select(source_dset) ;
+      when('to_stay.lab_rates')                 capture_var = 'incomplete_lab'      ;
+      when('to_stay.tumor_rates')               capture_var = 'incomplete_tumor'    ;
+      when('to_stay.rx_rates')                  capture_var = 'incomplete_outpt_rx' ;
+      when('to_stay.emr_s_rates')               capture_var = 'incomplete_emr'      ;
+      when('to_stay.emr_v_rates')               capture_var = 'incomplete_emr'      ;
+      when('to_stay.ute_out_rates_by_enctype')  capture_var = 'incomplete_outpt_enc';
+      when('to_stay.ute_in_rates_by_enctype')   capture_var = 'incomplete_inpt_enc' ;
+      otherwise capture_var = 'zah?' ;
+    end ;
+    if n_unenrolled le &lowest_count then n_unenrolled = .a ;
+    if n_total      le &lowest_count then n_total = .a ;
+  run ;
+  %removedset(dset = to_stay.lab_rates) ;
+  %removedset(dset = to_stay.tumor_rates) ;
+  %removedset(dset = to_stay.rx_rates) ;
+  %removedset(dset = to_stay.emr_s_rates) ;
+  %removedset(dset = to_stay.emr_v_rates) ;
+  %removedset(dset = to_stay.ute_out_rates_by_enctype) ;
+  %removedset(dset = to_stay.ute_in_rates_by_enctype) ;
 
-%removedset(dset = to_stay.lab_rates) ;
-%removedset(dset = to_stay.tumor_rates) ;
-%removedset(dset = to_stay.rx_rates) ;
-%removedset(dset = to_stay.emr_s_rates) ;
-%removedset(dset = to_stay.emr_v_rates) ;
-%removedset(dset = to_stay.ute_out_rates_by_enctype) ;
-%removedset(dset = to_stay.ute_in_rates_by_enctype) ;
+%mend merge_samesies ;
+
+%merge_samesies ;
 
 %put FINISHED! ;

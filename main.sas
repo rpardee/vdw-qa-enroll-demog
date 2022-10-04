@@ -27,14 +27,13 @@ options
   noovp
   mprint
   mlogic
-  options extendobscounter = no ;
 ;
 
 **************** begin edit section ****************************** ;
 **************** begin edit section ****************************** ;
 **************** begin edit section ****************************** ;
 
-* Undefine all libnames, just in case I rely on GHC-specific nonstandard ones downstream. ;
+* Undefine all libnames, just in case I rely on KPWA-specific nonstandard ones downstream. ;
 libname _all_ clear ;
 
 * Please edit this to point to your local standard vars file. ;
@@ -42,11 +41,6 @@ libname _all_ clear ;
 
 * Please edit this so it points to the location where you unzipped the files/folders. ;
 %let root = \\groups\data\CTRHS\Crn\voc\enrollment\programs ;
-
-* Some sites are having trouble w/the calls to SGPlot--if you want to try to get the graphs please set this var to false. ;
-* If you do and get errors, please keep it set to true. ;
-%let skip_graphs = true ;
-%let skip_graphs = false ;
 
 * Please set start_year to your earliest date of enrollment data. ;
 %let start_year = 1988 ;
@@ -59,6 +53,11 @@ libname _all_ clear ;
 * quality checks that get written to the DO_NOT_SEND folder. ;
 %let limit_bad_output = 50 ;
 %let limit_bad_output = false ;
+
+* Some sites are having trouble w/the calls to SGPlot--if you want to try to get the graphs please set this var to false. ;
+* If you do and get errors, please keep it set to true. ;
+%let skip_graphs = true ;
+%let skip_graphs = false ;
 
 * For the completeness graphs, what is the minimum monthly enrolled N we require ;
 * before we are willing to plot the point? ;
