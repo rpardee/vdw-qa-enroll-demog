@@ -29,7 +29,7 @@
 
 
   * create table for language checks;
-  proc sql ;
+  proc sql noprint ;
     create table lang_checks
     (   description char(50)
       , problem char(50)
@@ -93,7 +93,7 @@
   run;
 
   * report counts on the language table ;
-  proc sql;
+  proc sql noprint;
 	create table to_go.&_siteabbr._lang_stats as
 	select
 	  a.lr as lang_recs label 'records in lang file'

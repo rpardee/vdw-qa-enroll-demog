@@ -539,7 +539,7 @@ quit ;
     drop cand1 cand2 ;
   run ;
 
-  proc sql ;
+  proc sql noprint ;
     select sum(years_overlap) into :my_overlap
     from to_stay.overlapping_periods
     ;

@@ -718,8 +718,6 @@ proc sql ;
 
   create table langfmt like fmt ;
 
-  describe table langfmt ;
-
   insert into langfmt (fmtname, start, end, label)
   select '$LANG', abbrev, abbrev, description
   from iso_639_2

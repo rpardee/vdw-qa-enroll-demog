@@ -89,6 +89,8 @@ libname _all_ clear ;
 */
 
 * libname mylib teradata
+  user              = "&nuid@LDAP"
+  password          = "&cspassword"
   server            = "&td_prod"
   schema            = "&nuid"
   multi_datasrc_opt = in_clause
@@ -97,8 +99,11 @@ libname _all_ clear ;
   fastload          = yes
 ;
 
-* %let tmplib = mylib ;
 %let tmplib = work ;
+* %let tmplib = mylib ;
+
+* No listing file! ;
+ods _all_ close ;
 
 ****************** end edit section ****************************** ;
 ****************** end edit section ****************************** ;
