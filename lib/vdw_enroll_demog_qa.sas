@@ -1276,6 +1276,28 @@ quit ;
 
 %macro do_all_rates ;
 
+  * Not every site has every stdvar defined--guard against that. ;
+  %if not %symexist(_vdw_utilization) %then %do ;
+    %let _vdw_utilization = nonesuch ;
+  %end ;
+  %if not %symexist(_vdw_utilization) %then %do ;
+    %let _vdw_utilization = nonesuch ;
+  %end ;
+  %if not %symexist(_vdw_tumor) %then %do ;
+    %let _vdw_tumor = nonesuch ;
+  %end ;
+  %if not %symexist(_vdw_lab) %then %do ;
+    %let _vdw_lab = nonesuch ;
+  %end ;
+  %if not %symexist(_vdw_vitalsigns) %then %do ;
+    %let _vdw_vitalsigns = nonesuch ;
+  %end ;
+  %if not %symexist(_vdw_social_hx) %then %do ;
+    %let _vdw_social_hx = nonesuch ;
+  %end ;
+  %if not %symexist(_vdw_rx) %then %do ;
+    %let _vdw_rx = nonesuch ;
+  %end ;
   %get_rates(startyr    = &start_year
             , endyr     = &end_year
             , inset     = &_vdw_utilization
@@ -1284,7 +1306,6 @@ quit ;
             , outset    = to_stay.ute_in_rates_by_enctype
             , extra_var = coalesce(enctype, 'XX')
             ) ;
-
   %get_rates(startyr    = &start_year
             , endyr     = &end_year
             , inset     = &_vdw_utilization
@@ -1294,7 +1315,6 @@ quit ;
             , extra_var = coalesce(enctype, 'XX')
             , outunenr  = to_stay.enc_unenrolled
             ) ;
-
   %get_rates(startyr   = &start_year
             , endyr    = &end_year
             , inset    = &_vdw_tumor
@@ -1303,7 +1323,6 @@ quit ;
             , outset   = to_stay.tumor_rates
             , outunenr = to_stay.tum_unenrolled
             ) ;
-
   %get_rates(startyr   = &start_year
             , endyr    = &end_year
             , inset    = &_vdw_lab
@@ -1312,7 +1331,6 @@ quit ;
             , outset   = to_stay.lab_rates
             , outunenr = to_stay.lab_unenrolled
             ) ;
-
   %get_rates(startyr  = &start_year
             , endyr   = &end_year
             , inset   = &_vdw_vitalsigns
@@ -1322,7 +1340,6 @@ quit ;
             , outset  = to_stay.emr_v_rates
             , outunenr = to_stay.vsn_unenrolled
             ) ;
-
   %get_rates(startyr  = &start_year
             , endyr   = &end_year
             , inset   = &_vdw_social_hx
@@ -1332,7 +1349,6 @@ quit ;
             , outset  = to_stay.emr_s_rates
             , outunenr = to_stay.shx_unenrolled
             ) ;
-
   %get_rates(startyr  = &start_year
             , endyr   = &end_year
             , inset   = &_vdw_rx

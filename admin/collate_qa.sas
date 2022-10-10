@@ -878,26 +878,30 @@ run ;
     where var_name = 'race' and value not in ('Unknown', 'White') ;
   run ;
 
-  * ROY--REMOVE THIS!!! ;
-  * ods graphics / imagename = "delete_me" ;
-  * title3 "Incomplete_* vars--implementing sites only" ;
-  * proc sgpanel data = gnu ;
-  *   panelby site / novarname uniscale = column columns = 3 rows = 3 ;
-  *   series x = year y = pct / group = value lineattrs = (thickness = &th pattern = solid) ;
-  *   colaxis grid ;
-  *   rowaxis grid ;
-  *   by vcat var_name ;
-  *   where var_name like 'incomplete_%' and site in ('Geisinger'
-  *                                             , 'KP Washington'
-  *                                             , 'KP Colorado'
-  *                                             , "KP Northern California"
-  *                                             , "KP Hawaii"
-  *                                             , 'KP Northwest'
-  *                                             , "KP Southern California"
-  *                                             , 'Harvard'
-  *                                             , 'Marshfield') ;
-  *   format var_name $vars. pct percent8.0 ;
-  * run ;
+  proc sort data = gnu ;
+    by site ;
+    where var_name = 'sexual_orientation1' ;
+  run ;
+
+
+  ods graphics / imagename = "sexual_orientation" ;
+  title3 "Sexual Orientation (unknowns elided)" ;
+  proc sgpanel data = gnu ;
+    panelby site / novarname uniscale = column columns = 3 rows = 5 ;
+    series x = year y = pct / group = value lineattrs = (thickness = &th pattern = solid) ;
+    colaxis grid ;
+    rowaxis grid ;
+    format var_name $vars. pct percent8.0 ;
+  run ;
+
+  proc sgplot data = gnu ;
+    series x = year y = pct / group = value lineattrs = (thickness = &th pattern = solid) ;
+    xaxis grid ; * values = (&earliest to "31dec2010"d by month ) ;
+    yaxis grid ;
+    format var_name $vars. pct percent8.0 ;
+    by site ;
+  run ;
+
 %mend report ;
 
 %macro report_demog() ;
@@ -1082,7 +1086,7 @@ ods word file = "&out_folder.enroll_demog_qa.docx" ;
   ods graphics / imagename = "submitting_sites" ;
   proc sgplot data = submitting_sites ;
     dot site / response = date_submitted ;
-    xaxis grid ; * min='01-jan-2021'd ;
+    xaxis grid min='01-jul-2021'd ;
   run ;
 
   proc sql number ;
