@@ -259,6 +259,7 @@ proc sort nodupkey data = col.raw_enrollment_counts out = site_last_years ;
 run ;
 
 data site_last_years ;
+  length var_name $ 35 ;
   set site_last_years ;
   by site ;
   var_name = 'Total Membership' ;
@@ -267,10 +268,10 @@ data site_last_years ;
   keep site year var_name total ;
 run ;
 
-proc sql ;
+proc sql noprint ;
   create table s.grist as
   select ef.site
-        , ef.var_name
+        , ef.var_name length = 35
         , ef.year
         , put(ef.value, $v.) as value
         , right(put(ef.pct, percent8.1)) as total
@@ -289,7 +290,7 @@ proc sql ;
   ;
 
   insert into s.grist (site, year, var_name, total)
-  select site, ., 'Year submitted' as var_name, put(year, 4.0) as total
+  select site, ., 'Data Year' as var_name, put(year, 4.0) as total
   from site_last_years
   ;
 
@@ -307,7 +308,7 @@ run ;
 
 proc format ;
   value $srt
-    'Year submitted'      = ' 0'
+    'Data Year'      = ' 0'
     'Total Membership'    = ' 1'
     'agegroup'            = ' 2'
     'sex_admin'           = ' 3'
@@ -323,7 +324,7 @@ proc format ;
     'hispanic'            = '13'
   ;
   value $cat
-    'Year submitted'      = 'Overall'
+    'Data Year'      = 'Overall'
     'Total Membership'    = 'Overall'
     'agegroup'            = 'Age'
     'sex_admin'           = 'Sex'
@@ -357,7 +358,7 @@ data s.hcsrn_population_characteristics ;
   if var_name =: 'ins_' then value = put(var_name, $ins.) ;
   * long-standing bug in BSWs enrollment makes the membership figure bogus ;
   if var_name = 'Total Membership' then bswh = '?' ;
-  if var_name in ('hispanic', 'Total Membership', 'Year submitted') then value = var_name ;
+  if var_name in ('hispanic', 'Total Membership', 'Data Year') then value = var_name ;
 run ;
 
 proc sort data = s.hcsrn_population_characteristics ;
@@ -395,6 +396,7 @@ ods html5 path = "&out_folder" (URL=NONE)
           ;
 
   title1 "HCSRN Population Characteristics" ;
+  footnote1 "Report generated &sysdate9" ;
   proc print data = s.hcsrn_population_characteristics (drop = var_name srt) ;
     id cat value ;
     label
@@ -402,6 +404,7 @@ ods html5 path = "&out_folder" (URL=NONE)
       value = ' '
     ;
   run ;
+
 
 run ;
 
