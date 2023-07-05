@@ -387,8 +387,8 @@ ods graphics / height = 8in width = 10in imagemap = on ;
 %let out_folder = %sysfunc(pathname(s)) ;
 
 ods html5 path = "&out_folder" (URL=NONE)
-         body   = "pop_char_sketch.html"
-         (title = "pop_char_sketch output")
+         body   = "hcsrn_population_characteristics.html"
+         (title = "HCSRN Population Characteristics")
          style = styles.justify
          nogfootnote
          device = svg
