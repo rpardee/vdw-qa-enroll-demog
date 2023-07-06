@@ -372,6 +372,8 @@ data s.hcsrn_population_characteristics ;
 run ;
 
 * from http://support.sas.com/kb/23/348.html ;
+* VMs that give cant write to template store error: ;
+* WAQDCVDI000038 * 2 ;
 proc template;
   define style styles.justify;
     Parent=styles.magnify;
@@ -380,7 +382,15 @@ proc template;
   end;
 run;
 
-options orientation = landscape ;
+proc template;
+  define style styles.jusweb;
+    Parent=styles.sasweb;
+    Style Data from Data /
+         Just=right;
+  end;
+run;
+
+options orientation = landscape papersize = (14in 14in) ;
 ods graphics / height = 8in width = 10in imagemap = on ;
 
 * %let out_folder = /C/Users/O578092/Documents/vdw/voc_enroll/admin/frolics/ ;
@@ -394,6 +404,8 @@ ods html5 path = "&out_folder" (URL=NONE)
          device = svg
          /* options(svg_mode = "embed") */
           ;
+
+  ods word file = "&out_folder./pop_char.docx" style = styles.jusweb ; *style = styles.grayscaleprinter ;
 
   title1 "HCSRN Population Characteristics" ;
   footnote1 "Report generated &sysdate9" ;
@@ -409,7 +421,4 @@ ods html5 path = "&out_folder" (URL=NONE)
 run ;
 
 ods _all_ close ;
-
-
-
 
