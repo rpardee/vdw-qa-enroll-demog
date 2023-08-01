@@ -31,7 +31,7 @@ Run the command ```git clone ::repo-you-have-chosen:::``` someplace convenient (
 
 ### For <abbr title = "<cough>losers</cough>">Others<abbr>
 
-1. download the repository as a zip file from [the HCSRN portal](https://www.hcsrn.org/share/page/site/VDW/document-details?nodeRef=workspace://SpacesStore/13dc5a14-4caa-4058-ade6-305c40238afa)
+1. download the repository as a zip file from [the HCSRN portal](https://www.hcsrnalfresco.org/#/favorite/libraries/c52a9ea9-5476-42f2-9a5d-8fe18a8106b9/(viewer:view/13dc5a14-4caa-4058-ade6-305c40238afa)?location=%2Ffavorite%2Flibraries%2Fc52a9ea9-5476-42f2-9a5d-8fe18a8106b9)
 2. Unzip the contents of that file someplace convenient (i.e., in some directory you can put both the QA code and the data it will write to subdirectories).
 
 ### For Everyone
