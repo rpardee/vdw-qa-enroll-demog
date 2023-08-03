@@ -84,6 +84,13 @@ proc format cntlout = sites ;
     "B" = "Both Insurance and Geographic bases"
     "P" = "Non-enrollee Patient"
   ;
+  value $ebvs
+    "Non-member patient" = '1'
+    "Insurance"          = '2'
+    "Geography"          = '3'
+    "Both Ins + Geog"    = '4'
+    other                = '0'
+  ;
   value $gen
     'M' = 'Male'
     'F' = 'Female'
@@ -229,10 +236,10 @@ proc format cntlout = sites ;
     ;
   * from https://communities.sas.com/t5/SAS-Programming/Million-Format/td-p/440121 ;
   picture hicount (round)
-    1E03-<1000000='000K' (mult=.001  )
-    1E06-<1000000000='000.9M' (mult=.00001)
-    1E09-<1000000000000='000.9B' (mult=1E-08)
-    1E12-<1000000000000000='000.9T' (mult=1E-11)
+    1E03-<1000000='000 K' (mult=.001  )
+    1E06-<1000000000='000.9 M' (mult=.00001)
+    1E09-<1000000000000='000.9 B' (mult=1E-08)
+    1E12-<1000000000000000='000.9 T' (mult=1E-11)
   ;
   value $so
     'B' = 'B: Bisexual'
@@ -256,6 +263,7 @@ libname col "&prgs\submitted_data" ;
 
 proc sort nodupkey data = col.raw_enrollment_counts out = site_last_years ;
   by site year ;
+  where total_count > 0 ;
 run ;
 
 data site_last_years ;
@@ -266,6 +274,10 @@ data site_last_years ;
   total = total_count ;
   if last.site ;
   keep site year var_name total ;
+run ;
+
+data s.site_last_years ;
+  set site_last_years ;
 run ;
 
 proc sql noprint ;
@@ -279,7 +291,7 @@ proc sql noprint ;
     inner join site_last_years as ly on ef.site = ly.site and ef.year = ly.year
   where ef.var_name in ('agegroup', 'sex_admin', 'ins_medicaid', 'ins_medicare', 'ins_other',
                        'ins_privatepay', 'ins_selffunded', 'ins_statesubsidized',
-                       'ins_commercial', 'ins_highdeductible', 'race', 'hispanic')
+                       'ins_commercial', 'ins_highdeductible', 'race', 'hispanic', 'enrollment_basis')
     and value NOT in ('U', 'N', 'M', 'E', 'O', 'X')
   order by ef.site, ef.var_name, ef.value
   ;
@@ -328,16 +340,17 @@ proc format ;
     'Total Membership'    = 'Overall'
     'agegroup'            = 'Age'
     'sex_admin'           = 'Sex'
-    'ins_commercial'      = 'Insurance'
-    'ins_medicaid'        = 'Insurance'
-    'ins_medicare'        = 'Insurance'
-    'ins_privatepay'      = 'Insurance'
-    'ins_highdeductible'  = 'Insurance'
-    'ins_selffunded'      = 'Insurance'
-    'ins_statesubsidized' = 'Insurance'
-    'ins_other'           = 'Insurance'
-    'race'                = 'Race'
+    'ins_commercial'      = 'Insurance*'
+    'ins_medicaid'        = 'Insurance*'
+    'ins_medicare'        = 'Insurance*'
+    'ins_privatepay'      = 'Insurance*'
+    'ins_highdeductible'  = 'Insurance*'
+    'ins_selffunded'      = 'Insurance*'
+    'ins_statesubsidized' = 'Insurance*'
+    'ins_other'           = 'Insurance*'
+    'race'                = 'Race**'
     'hispanic'            = 'Ethnicity'
+    'enrollment_basis' = 'Population basis'
   ;
   value $ins
     'ins_commercial'      = 'Commercial'
@@ -354,6 +367,7 @@ quit ;
 data s.hcsrn_population_characteristics ;
   set s.tposed ;
   srt = put(var_name, $srt.) ;
+  subsrt = put(value, $ebvs.) ;
   cat = put(var_name, $cat.) ;
   if var_name =: 'ins_' then value = put(var_name, $ins.) ;
   * long-standing bug in BSWs enrollment makes the membership figure bogus ;
@@ -362,7 +376,7 @@ data s.hcsrn_population_characteristics ;
 run ;
 
 proc sort data = s.hcsrn_population_characteristics ;
-  by srt ;
+  by srt subsrt ;
 run ;
 
 data s.hcsrn_population_characteristics ;
@@ -408,15 +422,16 @@ ods html5 path = "&out_folder" (URL=NONE)
   ods word file = "&out_folder./pop_char.docx" style = styles.jusweb ; *style = styles.grayscaleprinter ;
 
   title1 "HCSRN Population Characteristics" ;
-  footnote1 "Report generated &sysdate9" ;
-  proc print data = s.hcsrn_population_characteristics (drop = var_name srt) ;
+  footnote1 '* These are independent flags, and so the percentages can sum to more than 100%' ;
+  footnote2 '** Each person can have as many as 5 values of race, and so the percentages can sum to more than 100%' ;
+  footnote3 "Report generated &sysdate9" ;
+  proc print data = s.hcsrn_population_characteristics (drop = var_name srt subsrt) ;
     id cat value ;
     label
       cat = ' '
       value = ' '
     ;
   run ;
-
 
 run ;
 
