@@ -325,7 +325,8 @@ quit ;
       problem = "enr_end is before enr_start" ;
       output to_stay.bad_enroll ;
     end ;
-    if enr_end gt "&sysdate"d then do ;
+
+    if enr_end gt today()  then do ;
       problem = "future enr_end" ;
       output to_stay.bad_enroll ;
     end ;
