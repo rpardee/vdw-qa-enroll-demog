@@ -88,7 +88,7 @@ libname _all_ clear ;
   tries this out.
 */
 
-* libname mylib teradata
+libname mylib teradata
   user              = "&nuid@LDAP"
   password          = "&cspassword"
   server            = "&td_prod"
@@ -99,8 +99,8 @@ libname _all_ clear ;
   fastload          = yes
 ;
 
-%let tmplib = work ;
-* %let tmplib = mylib ;
+* %let tmplib = work ;
+%let tmplib = mylib ;
 
 * No listing file! ;
 ods _all_ close ;
@@ -108,7 +108,7 @@ ods _all_ close ;
 ****************** end edit section ****************************** ;
 ****************** end edit section ****************************** ;
 ****************** end edit section ****************************** ;
-
+* no, this is a comment from Roy ;
 * Acceding to the CESR convention of spitting log out to sendable folder. ;
 proc printto log = "&root/share/&_siteabbr._vdw_enroll_demog_qa.log" new ;
 run ;
