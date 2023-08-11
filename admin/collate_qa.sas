@@ -990,7 +990,7 @@ run ;
     select site
       into :allnulls separated by '", "'
     from (
-        select site, r,  count(*) as num_vals
+        select site, r,  count(*) as num_val
         from &inset
         group by site, r)
     group by site
@@ -1041,7 +1041,7 @@ run ;
 %mend report_correlations ;
 
 
-* %regen ;
+%regen ;
 * endsas ;
 
 ods listing close ;
