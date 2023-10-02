@@ -1073,8 +1073,6 @@ ods word file = "&out_folder.enroll_demog_qa.docx" ;
     where libname = 'RAW' and memname like '%_TIER_ONE_RESULTS'
     ;
 
-    * insert into submitting_sites (site) values ("St. Louis U/AHEAD") ;
-
     alter table submitting_sites add primary key (site) ;
 
     create table col.submitting_sites as
