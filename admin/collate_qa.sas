@@ -1040,8 +1040,7 @@ run ;
   options byline ;
 %mend report_correlations ;
 
-
-* %regen ;
+%regen ;
 * endsas ;
 
 ods listing close ;
@@ -1086,7 +1085,7 @@ ods word file = "&out_folder.enroll_demog_qa.docx" ;
   ods graphics / imagename = "submitting_sites" ;
   proc sgplot data = submitting_sites ;
     dot site / response = date_submitted ;
-    xaxis grid min='01-jul-2021'd ;
+    xaxis grid min='01-jul-2022'd ;
   run ;
 
   proc sql number ;
