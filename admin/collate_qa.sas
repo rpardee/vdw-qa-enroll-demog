@@ -990,7 +990,7 @@ run ;
     select site
       into :allnulls separated by '", "'
     from (
-        select site, r,  count(*) as num_vals
+        select site, r,  count(*) as num_val
         from &inset
         group by site, r)
     group by site
@@ -1071,8 +1071,6 @@ ods word file = "&out_folder.enroll_demog_qa.docx" ;
     from dictionary.tables
     where libname = 'RAW' and memname like '%_TIER_ONE_RESULTS'
     ;
-
-    * insert into submitting_sites (site) values ("St. Louis U/AHEAD") ;
 
     alter table submitting_sites add primary key (site) ;
 
