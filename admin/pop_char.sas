@@ -371,7 +371,7 @@ data s.hcsrn_population_characteristics ;
   cat = put(var_name, $cat.) ;
   if var_name =: 'ins_' then value = put(var_name, $ins.) ;
   * long-standing bug in BSWs enrollment makes the membership figure bogus ;
-  if var_name = 'Total Membership' then bswh = '?' ;
+  * if var_name = 'Total Membership' then bswh = '?' ;
   if var_name in ('hispanic', 'Total Membership', 'Data Year') then value = var_name ;
 run ;
 
